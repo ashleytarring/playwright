@@ -189,7 +189,7 @@ export class RecorderApp {
   }
 
   static forContext(context: BrowserContext): RecorderApp | undefined {
-    return (context as any)[recorderAppSymbol] as RecorderApp | undefined;
+    return ((context as any)[recorderAppSymbol] ?? (context as any).recorderAppForTest) as RecorderApp | undefined;
   }
 
   static async show(context: BrowserContext, params: channels.BrowserContextShowRecorderParams) {
