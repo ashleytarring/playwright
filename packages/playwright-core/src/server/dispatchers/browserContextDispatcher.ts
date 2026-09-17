@@ -377,7 +377,6 @@ export class BrowserContextDispatcher extends Dispatcher<BrowserContext, channel
   }
 
   async pause(params: channels.BrowserContextPauseParams, progress: Progress): Promise<channels.BrowserContextPauseResult> {
-    await RecorderApp.show(this._context, { language: 'csharp', mode: 'recording' });
     const recorderApp = RecorderApp.forContext(this._context);
     return { source: recorderApp?.source() };
   }
