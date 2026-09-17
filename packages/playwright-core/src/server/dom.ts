@@ -73,11 +73,11 @@ export class FrameExecutionContext extends js.ExecutionContext {
     return js.evaluate(this, false /* returnByValue */, pageFunction, arg);
   }
 
-  async evaluateExpression(expression: string, options: { isFunction?: boolean }, arg?: any): Promise<any> {
+  async evaluateExpression(expression: string, options: { isFunction?: boolean, serialize?: ('Map' | 'Set')[] }, arg?: any): Promise<any> {
     return js.evaluateExpression(this, expression, { ...options, returnByValue: true }, arg);
   }
 
-  async evaluateExpressionHandle(expression: string, options: { isFunction?: boolean }, arg?: any): Promise<js.JSHandle<any>> {
+  async evaluateExpressionHandle(expression: string, options: { isFunction?: boolean, serialize?: ('Map' | 'Set')[] }, arg?: any): Promise<js.JSHandle<any>> {
     return js.evaluateExpression(this, expression, { ...options, returnByValue: false }, arg);
   }
 
@@ -91,6 +91,7 @@ export class FrameExecutionContext extends js.ExecutionContext {
       const options: InjectedScriptOptions = {
         isUnderTest: isUnderTest(),
         sdkLanguage,
+        frameSeq: this.frame.seq,
         testIdAttributeName: selectorsRegistry.testIdAttributeName(),
         stableRafCount: this.frame._page.delegate.rafCountForStablePosition(),
         browserName: this.frame._page.browserContext._browser.options.name,
@@ -412,7 +413,7 @@ export class ElementHandle<T extends Node = Node> extends js.JSHandle<T> {
       if (forceScrollOptions) {
         return await progress.race(this.evaluateInUtility(([injected, node, options]) => {
           if (node.nodeType === 1 /* Node.ELEMENT_NODE */)
-            (node as Node as Element).scrollIntoView(options);
+            (node as Node as Element).scrollIntoView({ ...options, behavior: 'instant' });
           return 'done' as const;
         }, forceScrollOptions));
       }
@@ -453,7 +454,7 @@ export class ElementHandle<T extends Node = Node> extends js.JSHandle<T> {
     if (typeof maybeResult === 'string')
       return maybeResult;
     const point = roundPoint(maybeResult.point);
-    await progress.race(this.instrumentation.onBeforeInputAction(this, progress.metadata, point, maybeResult.box));
+    await this.instrumentation.onBeforeInputAction(progress, this, point, maybeResult.box);
 
     let hitTargetInterceptionHandle: js.JSHandle<HitTargetInterceptionResult> | undefined;
     if (force) {
@@ -573,10 +574,10 @@ export class ElementHandle<T extends Node = Node> extends js.JSHandle<T> {
     return throwRetargetableDOMError(result);
   }
 
-  async _selectOption(progress: Progress, elements: ElementHandle[], values: types.SelectOption[], options: types.CommonActionOptions): Promise<string[] | 'error:notconnected'> {
+  async _selectOption(progress: Progress, elements: ElementHandle[], values: types.SelectOption[], options: types.CommonActionOptions, box?: types.Rect): Promise<string[] | 'error:notconnected'> {
     let resultingOptions: string[] = [];
     const result = await this._retryAction(progress, 'select option', async progress => {
-      await progress.race(this.instrumentation.onBeforeInputAction(this, progress.metadata));
+      await this.instrumentation.onBeforeInputAction(progress, this, undefined, box);
       if (!options.force)
         progress.log(`  waiting for element to be visible and enabled`);
       const optionsToSelect = [...elements, ...values];
@@ -606,10 +607,10 @@ export class ElementHandle<T extends Node = Node> extends js.JSHandle<T> {
     assertDone(throwRetargetableDOMError(result));
   }
 
-  async _fill(progress: Progress, value: string, options: types.CommonActionOptions): Promise<'error:notconnected' | 'done'> {
+  async _fill(progress: Progress, value: string, options: types.CommonActionOptions, box?: types.Rect): Promise<'error:notconnected' | 'done'> {
     progress.log(`  fill("${value}")`);
     return await this._retryAction(progress, 'fill', async progress => {
-      await progress.race(this.instrumentation.onBeforeInputAction(this, progress.metadata));
+      await this.instrumentation.onBeforeInputAction(progress, this, undefined, box);
       if (!options.force)
         progress.log('  waiting for element to be visible, enabled and editable');
       const result = await progress.race(this.evaluateInUtility(async ([injected, node, { value, force }]) => {
@@ -722,7 +723,7 @@ export class ElementHandle<T extends Node = Node> extends js.JSHandle<T> {
     }, { ...options, waitAfter: 'disabled' });
   }
 
-  async _setInputFiles(progress: Progress, items: InputFilesItems): Promise<'error:notconnected' | 'done'> {
+  async _setInputFiles(progress: Progress, items: InputFilesItems, box?: types.Rect): Promise<'error:notconnected' | 'done'> {
     const { filePayloads, localPaths, localDirectory } = items;
     const multiple = filePayloads && filePayloads.length > 1 || localPaths && localPaths.length > 1;
     const result = await progress.race(this._evaluateHandleInUtility(([injected, node, { multiple, directoryUpload }]): Element | undefined => {
@@ -743,7 +744,7 @@ export class ElementHandle<T extends Node = Node> extends js.JSHandle<T> {
     if (result === 'error:notconnected' || !result.asElement())
       return 'error:notconnected';
     const retargeted = result.asElement() as ElementHandle<HTMLInputElement>;
-    await progress.race(this.instrumentation.onBeforeInputAction(this, progress.metadata));
+    await this.instrumentation.onBeforeInputAction(progress, this, undefined, box);
     if (localPaths || localDirectory) {
       const localPathsOrDirectory = localDirectory ? [localDirectory] : localPaths!;
       await progress.race(Promise.all((localPathsOrDirectory).map(localPath => (
@@ -782,9 +783,9 @@ export class ElementHandle<T extends Node = Node> extends js.JSHandle<T> {
     return assertDone(throwRetargetableDOMError(result));
   }
 
-  async _type(progress: Progress, text: string, options: { delay?: number } & types.StrictOptions): Promise<'error:notconnected' | 'done'> {
+  async _type(progress: Progress, text: string, options: { delay?: number } & types.StrictOptions, box?: types.Rect): Promise<'error:notconnected' | 'done'> {
     progress.log(`elementHandle.type("${text}")`);
-    await progress.race(this.instrumentation.onBeforeInputAction(this, progress.metadata));
+    await this.instrumentation.onBeforeInputAction(progress, this, undefined, box);
     const result = await this._focus(progress, true /* resetSelectionIfNotFocused */);
     if (result !== 'done')
       return result;
@@ -798,9 +799,9 @@ export class ElementHandle<T extends Node = Node> extends js.JSHandle<T> {
     return assertDone(throwRetargetableDOMError(result));
   }
 
-  async _press(progress: Progress, key: string, options: { delay?: number, noWaitAfter?: boolean } & types.StrictOptions): Promise<'error:notconnected' | 'done'> {
+  async _press(progress: Progress, key: string, options: { delay?: number, noWaitAfter?: boolean } & types.StrictOptions, box?: types.Rect): Promise<'error:notconnected' | 'done'> {
     progress.log(`elementHandle.press("${key}")`);
-    await progress.race(this.instrumentation.onBeforeInputAction(this, progress.metadata));
+    await this.instrumentation.onBeforeInputAction(progress, this, undefined, box);
     return this._page.frameManager.waitForSignalsCreatedBy(progress, !options.noWaitAfter, async progress => {
       const result = await this._focus(progress, true /* resetSelectionIfNotFocused */);
       if (result !== 'done')
@@ -868,12 +869,21 @@ export class ElementHandle<T extends Node = Node> extends js.JSHandle<T> {
     return this._frame.selectors.queryAll(selector, this);
   }
 
-  async evalOnSelector(progress: Progress, selector: string, strict: boolean, expression: string, isFunction: boolean | undefined, arg: any): Promise<any> {
-    return this._frame.evalOnSelector(progress, selector, strict, expression, isFunction, arg, this);
+  override async evaluateExpression(progress: Progress, expression: string, options: { isFunction?: boolean, world?: types.World, serialize?: ('Map' | 'Set')[] }, arg: any): Promise<any> {
+    return await progress.race(this.internalEvaluateExpression(expression, options, arg));
   }
 
-  async evalOnSelectorAll(progress: Progress, selector: string, expression: string, isFunction: boolean | undefined, arg: any): Promise<any> {
-    return this._frame.evalOnSelectorAll(progress, selector, expression, isFunction, arg, this);
+  override async internalEvaluateExpression(expression: string, options: { isFunction?: boolean, world?: types.World, serialize?: ('Map' | 'Set')[] }, arg: any): Promise<any> {
+    const context = options.world ? await this._frame.context(options.world) : this._context;
+    return await js.evaluateExpression(context, expression, { isFunction: options.isFunction, serialize: options.serialize, returnByValue: true }, this, arg);
+  }
+
+  async evalOnSelector(progress: Progress, selector: string, strict: boolean, expression: string, options: { isFunction?: boolean, world?: types.World }, arg: any): Promise<any> {
+    return this._frame.evalOnSelector(progress, selector, strict, expression, options, arg, this);
+  }
+
+  async evalOnSelectorAll(progress: Progress, selector: string, expression: string, options: { isFunction?: boolean, world?: types.World }, arg: any): Promise<any> {
+    return this._frame.evalOnSelectorAll(progress, selector, expression, options, arg, this);
   }
 
   async isVisible(progress: Progress): Promise<boolean> {
@@ -926,37 +936,44 @@ export class ElementHandle<T extends Node = Node> extends js.JSHandle<T> {
   async _checkFrameIsHitTarget(progress: Progress, point: types.Point): Promise<{ framePoint: types.Point | undefined } | 'error:notconnected' | { hitTargetDescription: string }> {
     let frame = this._frame;
     const data: { frame: frames.Frame, frameElement: ElementHandle<Element> | null, pointInFrame: types.Point }[] = [];
-    while (frame.parentFrame()) {
-      const frameElement = await frame.frameElement(progress) as ElementHandle<Element>;
-      const box = await frameElement.boundingBox(progress);
-      const style = await progress.race(frameElement.evaluateInUtility(([injected, iframe]) => injected.describeIFrameStyle(iframe), {}).catch(e => 'error:notconnected' as const));
-      if (!box || style === 'error:notconnected')
-        return 'error:notconnected';
-      if (style === 'transformed') {
-        // We cannot translate coordinates when iframe has any transform applied.
-        // The best we can do right now is to skip the hitPoint check,
-        // and solely rely on the event interceptor.
-        return { framePoint: undefined };
+    const temporaryFrameElements: ElementHandle<Element>[] = [];
+    try {
+      while (frame.parentFrame()) {
+        const frameElement = await frame.frameElement(progress) as ElementHandle<Element>;
+        temporaryFrameElements.push(frameElement);
+        const box = await frameElement.boundingBox(progress);
+        const style = await progress.race(frameElement.evaluateInUtility(([injected, iframe]) => injected.describeIFrameStyle(iframe), {}).catch(e => 'error:notconnected' as const));
+        if (!box || style === 'error:notconnected')
+          return 'error:notconnected';
+        if (style === 'transformed') {
+          // We cannot translate coordinates when iframe has any transform applied.
+          // The best we can do right now is to skip the hitPoint check,
+          // and solely rely on the event interceptor.
+          return { framePoint: undefined };
+        }
+        // Translate from viewport coordinates to frame coordinates.
+        const pointInFrame = { x: point.x - box.x - style.left, y: point.y - box.y - style.top };
+        data.push({ frame, frameElement, pointInFrame });
+        frame = frame.parentFrame()!;
       }
-      // Translate from viewport coordinates to frame coordinates.
-      const pointInFrame = { x: point.x - box.x - style.left, y: point.y - box.y - style.top };
-      data.push({ frame, frameElement, pointInFrame });
-      frame = frame.parentFrame()!;
-    }
-    // Add main frame.
-    data.push({ frame, frameElement: null, pointInFrame: point });
+      // Add main frame.
+      data.push({ frame, frameElement: null, pointInFrame: point });
 
-    for (let i = data.length - 1; i > 0; i--) {
-      const element = data[i - 1].frameElement!;
-      const point = data[i].pointInFrame;
-      // Hit target in the parent frame should hit the child frame element.
-      const hitTargetResult = await progress.race(element.evaluateInUtility(([injected, element, hitPoint]) => {
-        return injected.expectHitTarget(hitPoint, element);
-      }, point));
-      if (hitTargetResult !== 'done')
-        return hitTargetResult;
+      for (let i = data.length - 1; i > 0; i--) {
+        const element = data[i - 1].frameElement!;
+        const point = data[i].pointInFrame;
+        // Hit target in the parent frame should hit the child frame element.
+        const hitTargetResult = await progress.race(element.evaluateInUtility(([injected, element, hitPoint]) => {
+          return injected.expectHitTarget(hitPoint, element);
+        }, point));
+        if (hitTargetResult !== 'done')
+          return hitTargetResult;
+      }
+      return { framePoint: data[0].pointInFrame };
+    } finally {
+      for (const frameElement of temporaryFrameElements)
+        frameElement.dispose();
     }
-    return { framePoint: data[0].pointInFrame };
   }
 }
 

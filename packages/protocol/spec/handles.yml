@@ -29,6 +29,18 @@ JSHandle:
         expression: string
         isFunction: boolean?
         arg: SerializedArgument
+        serialize:
+          type: array?
+          items:
+            type: enum
+            literals:
+            - Map
+            - Set
+        world:
+          type: enum?
+          literals:
+          - main
+          - utility
       returns:
         value: SerializedValue
       flags:
@@ -41,6 +53,13 @@ JSHandle:
         expression: string
         isFunction: boolean?
         arg: SerializedArgument
+        serialize:
+          type: array?
+          items:
+            type: enum
+            literals:
+            - Map
+            - Set
       returns:
         handle: JSHandle
       flags:
@@ -88,12 +107,18 @@ ElementHandle:
 
     evalOnSelector:
       title: Evaluate
+      subtitle: '{selector}'
       parameters:
         selector: string
         strict: boolean?
         expression: string
         isFunction: boolean?
         arg: SerializedArgument
+        world:
+          type: enum?
+          literals:
+          - main
+          - utility
       returns:
         value: SerializedValue
       flags:
@@ -102,11 +127,17 @@ ElementHandle:
 
     evalOnSelectorAll:
       title: Evaluate
+      subtitle: '{selector}'
       parameters:
         selector: string
         expression: string
         isFunction: boolean?
         arg: SerializedArgument
+        world:
+          type: enum?
+          literals:
+          - main
+          - utility
       returns:
         value: SerializedValue
       flags:
@@ -123,6 +154,8 @@ ElementHandle:
 
     check:
       title: Check
+      renderParams:
+      - position
       parameters:
         force: boolean?
         scroll:
@@ -131,7 +164,6 @@ ElementHandle:
           - auto
           - none
         position: Point?
-        timeout: float
         trial: boolean?
       flags:
         slowMo: true
@@ -142,6 +174,11 @@ ElementHandle:
 
     click:
       title: Click
+      renderParams:
+      - button
+      - clickCount
+      - modifiers
+      - position
       parameters:
         force: boolean?
         scroll:
@@ -169,7 +206,6 @@ ElementHandle:
           - right
           - middle
         clickCount: int?
-        timeout: float
         trial: boolean?
         steps: int?
       flags:
@@ -187,6 +223,10 @@ ElementHandle:
 
     dblclick:
       title: Double click
+      renderParams:
+      - button
+      - modifiers
+      - position
       parameters:
         force: boolean?
         scroll:
@@ -212,7 +252,6 @@ ElementHandle:
           - left
           - right
           - middle
-        timeout: float
         trial: boolean?
         steps: int?
       flags:
@@ -224,6 +263,8 @@ ElementHandle:
 
     dispatchEvent:
       title: Dispatch event
+      renderParams:
+      - type
       parameters:
         type: string
         eventInit: SerializedArgument
@@ -234,10 +275,11 @@ ElementHandle:
 
     fill:
       title: Fill "{value}"
+      renderParams:
+      - value
       parameters:
         value: string
         force: boolean?
-        timeout: float
       flags:
         slowMo: true
         snapshot: true
@@ -265,6 +307,9 @@ ElementHandle:
 
     hover:
       title: Hover
+      renderParams:
+      - modifiers
+      - position
       parameters:
         force: boolean?
         scroll:
@@ -283,7 +328,6 @@ ElementHandle:
             - Meta
             - Shift
         position: Point?
-        timeout: float
         trial: boolean?
       flags:
         slowMo: true
@@ -381,10 +425,11 @@ ElementHandle:
 
     press:
       title: Press "{key}"
+      renderParams:
+      - key
       parameters:
         key: string
         delay: float?
-        timeout: float
         noWaitAfter: boolean?
       flags:
         slowMo: true
@@ -395,6 +440,7 @@ ElementHandle:
 
     querySelector:
       title: Query selector
+      subtitle: '{selector}'
       parameters:
         selector: string
         strict: boolean?
@@ -405,6 +451,7 @@ ElementHandle:
 
     querySelectorAll:
       title: Query selector all
+      subtitle: '{selector}'
       parameters:
         selector: string
       returns:
@@ -416,13 +463,15 @@ ElementHandle:
 
     screenshot:
       title: Screenshot
+      renderParams:
+      - type
       parameters:
-        timeout: float
         type:
           type: enum?
           literals:
           - png
           - jpeg
+          - webp
         quality: int?
         $mixin: CommonScreenshotOptions
       returns:
@@ -433,8 +482,6 @@ ElementHandle:
 
     scrollIntoViewIfNeeded:
       title: Scroll into view
-      parameters:
-        timeout: float
       flags:
         slowMo: true
         snapshot: true
@@ -442,6 +489,8 @@ ElementHandle:
 
     selectOption:
       title: Select option
+      renderParams:
+      - options
       parameters:
         elements:
           type: array?
@@ -456,7 +505,6 @@ ElementHandle:
               label: string?
               index: int?
         force: boolean?
-        timeout: float
       returns:
         values:
           type: array
@@ -472,7 +520,6 @@ ElementHandle:
       title: Select text
       parameters:
         force: boolean?
-        timeout: float
       flags:
         slowMo: true
         snapshot: true
@@ -480,6 +527,8 @@ ElementHandle:
 
     setInputFiles:
       title: Set input files
+      renderParams:
+      - files=localPaths
       parameters:
         # Only one of payloads, localPaths and streams should be present.
         payloads:
@@ -498,7 +547,6 @@ ElementHandle:
         streams:
           type: array?
           items: WritableStream
-        timeout: float
       flags:
         slowMo: true
         snapshot: true
@@ -508,6 +556,9 @@ ElementHandle:
 
     tap:
       title: Tap
+      renderParams:
+      - modifiers
+      - position
       parameters:
         force: boolean?
         scroll:
@@ -526,7 +577,6 @@ ElementHandle:
             - Meta
             - Shift
         position: Point?
-        timeout: float
         trial: boolean?
       flags:
         slowMo: true
@@ -546,10 +596,11 @@ ElementHandle:
 
     type:
       title: Type
+      renderParams:
+      - text
       parameters:
         text: string
         delay: float?
-        timeout: float
       flags:
         slowMo: true
         snapshot: true
@@ -559,6 +610,8 @@ ElementHandle:
 
     uncheck:
       title: Uncheck
+      renderParams:
+      - position
       parameters:
         force: boolean?
         scroll:
@@ -567,7 +620,6 @@ ElementHandle:
           - auto
           - none
         position: Point?
-        timeout: float
         trial: boolean?
       flags:
         slowMo: true
@@ -578,6 +630,8 @@ ElementHandle:
 
     waitForElementState:
       title: Wait for state
+      renderParams:
+      - state
       parameters:
         state:
           type: enum
@@ -588,17 +642,18 @@ ElementHandle:
           - enabled
           - disabled
           - editable
-        timeout: float
       flags:
         snapshot: true
         pause: true
 
     waitForSelector:
       title: Wait for selector
+      subtitle: '{selector}'
+      renderParams:
+      - state
       parameters:
         selector: string
         strict: boolean?
-        timeout: float
         state:
           type: enum?
           literals:

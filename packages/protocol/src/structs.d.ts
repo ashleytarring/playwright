@@ -79,6 +79,8 @@ export type APIResponse = {
   headers: NameValue[],
   securityDetails?: SecurityDetails,
   serverAddr?: RemoteAddr,
+  timing?: ResourceTiming,
+  responseEndTiming?: number,
 };
 
 export type Metadata = {
@@ -89,11 +91,11 @@ export type Metadata = {
   },
   title?: string,
   internal?: boolean,
-  stepId?: string,
+  timeout?: number,
 };
 
 export type ClientSideCallMetadata = {
-  id: number,
+  id: string,
   stack?: StackFrame[],
 };
 
@@ -105,6 +107,13 @@ export type WaitInfo = {
   event?: string,
   message?: string,
   error?: string,
+};
+
+export type HttpCredentials = {
+  username: string,
+  password: string,
+  origin?: string,
+  send?: 'always' | 'unauthorized',
 };
 
 export type SetNetworkCookie = {
@@ -232,16 +241,24 @@ export type IndexedDBDatabase = {
   }[],
 };
 
+export type OPFSEntry = {
+  path: string,
+  type: 'file' | 'directory',
+  base64?: string,
+};
+
 export type SetOriginStorage = {
   origin: string,
   localStorage: NameValue[],
   indexedDB?: IndexedDBDatabase[],
+  opfs?: OPFSEntry[],
 };
 
 export type OriginStorage = {
   origin: string,
   localStorage: NameValue[],
   indexedDB?: IndexedDBDatabase[],
+  opfs?: OPFSEntry[],
 };
 
 export type RecordHarOptions = {
@@ -280,7 +297,13 @@ export type SerializedValue = {
     k: string,
     v: SerializedValue,
   }[],
+  me?: {
+    k: SerializedValue,
+    v: SerializedValue,
+  }[],
+  se?: SerializedValue[],
   h?: number,
+  fn?: string,
   id?: number,
   ref?: number,
 };
@@ -295,6 +318,12 @@ export type SerializedError = {
     message: string,
     name: string,
     stack?: string,
+    code?: string,
+    errno?: number,
+    syscall?: string,
+    address?: string,
+    port?: number,
+    hostname?: string,
   },
   value?: SerializedValue,
 };

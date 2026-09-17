@@ -26,9 +26,12 @@ import { LogFile } from './logFile';
 import { ModalState } from './tool';
 import { handleDialog } from './dialogs';
 import { uploadFile } from './files';
+import { listWebMCPTools } from './webmcp';
 
+import type { AriaSnapshotJSON } from '@isomorphic/ariaSnapshot';
 import type { Disposable } from '@isomorphic/disposable';
 import type { Context, ContextConfig } from './context';
+import type { WebMCPListing } from './webmcp';
 import type * as playwright from '../../..';
 
 const TabEvents = {
@@ -77,11 +80,14 @@ export type TabHeader = {
   url: string;
   current: boolean;
   crashed: boolean;
+  mainDocumentStatus?: { status: number, statusText: string };
   console: { total: number, warnings: number, errors: number };
+  webmcpToolCount?: number;
 };
 
 type TabSnapshot = {
   ariaSnapshot: string;
+  ariaSnapshotJSON?: AriaSnapshotJSON;
   modalStates: ModalState[];
   events: EventEntry[];
   consoleLink?: string;
@@ -93,11 +99,13 @@ export class Tab extends EventEmitter<TabEventsInterface> {
   private _lastHeader: TabHeader = { title: 'about:blank', url: 'about:blank', current: false, crashed: false, console: { total: 0, warnings: 0, errors: 0 } };
   private _downloads: Download[] = [];
   private _requests: playwright.Request[] = [];
+  private _mainDocumentStatus: { status: number, statusText: string } | undefined;
   private _onPageClose: (tab: Tab) => void;
   crashed = false;
   private _modalStates: ModalState[] = [];
   private _initializedPromise: Promise<void>;
   private _recentEventEntries: EventEntry[] = [];
+  private _webmcpTools: WebMCPListing | undefined;
   private _consoleLog: LogFile;
   private _disposables: Disposable[];
   readonly actionTimeoutOptions: { timeout?: number; };
@@ -127,6 +135,7 @@ export class Tab extends EventEmitter<TabEventsInterface> {
         });
       }),
       eventsHelper.addEventListener(p, 'dialog', dialog => this._dialogShown(dialog)),
+      eventsHelper.addEventListener(p, 'dialogclosed', dialog => this._dialogClosed(dialog)),
       eventsHelper.addEventListener(p, 'download', download => {
         void this._downloadStarted(download);
       }),
@@ -144,6 +153,10 @@ export class Tab extends EventEmitter<TabEventsInterface> {
   async dispose() {
     await disposeAll(this._disposables);
     this._consoleLog.stop();
+  }
+
+  async waitForInitialized() {
+    await this._initializedPromise;
   }
 
   static forPage(page: playwright.Page): Tab | undefined {
@@ -201,6 +214,12 @@ export class Tab extends EventEmitter<TabEventsInterface> {
     });
   }
 
+  private _dialogClosed(dialog: playwright.Dialog) {
+    const modalState = this._modalStates.find(state => state.type === 'dialog' && state.dialog === dialog);
+    if (modalState)
+      this.clearModalState(modalState);
+  }
+
   private async _downloadStarted(download: playwright.Download) {
     // Do not trust web names.
     const outputFile = await this.context.outputFile({ suggestedFilename: sanitizeForFilePath(download.suggestedFilename()), prefix: 'download', ext: 'bin' }, { origin: 'code' });
@@ -217,8 +236,10 @@ export class Tab extends EventEmitter<TabEventsInterface> {
   }
 
   private _clearCollectedArtifacts() {
+    this._webmcpTools = undefined;
     this._downloads.length = 0;
     this._requests.length = 0;
+    this._mainDocumentStatus = undefined;
     this._recentEventEntries.length = 0;
     this._resetLogs();
   }
@@ -238,9 +259,12 @@ export class Tab extends EventEmitter<TabEventsInterface> {
   }
 
   private _handleResponse(response: playwright.Response) {
-    const timing = response.request().timing();
+    const request = response.request();
+    if (request.isNavigationRequest() && response.frame() === this.page.mainFrame() && !request.redirectedTo())
+      this._mainDocumentStatus = { status: response.status(), statusText: response.statusText() };
+    const timing = request.timing();
     const wallTime = timing.responseStart + timing.startTime;
-    this._addLogEntry({ type: 'request', wallTime, request: response.request() });
+    this._addLogEntry({ type: 'request', wallTime, request });
   }
 
   private _handleRequestFailed(request: playwright.Request) {
@@ -283,7 +307,9 @@ export class Tab extends EventEmitter<TabEventsInterface> {
       url: this.page.url(),
       current: this.isCurrentTab(),
       crashed: this.crashed,
+      mainDocumentStatus: this._mainDocumentStatus,
       console: consoleCounts,
+      webmcpToolCount: this._webmcpTools?.tools.length,
     };
 
     if (!tabHeaderEquals(this._lastHeader, newHeader)) {
@@ -327,12 +353,10 @@ export class Tab extends EventEmitter<TabEventsInterface> {
       abortDownloadEvent();
     } catch (_e: unknown) {
       const e = _e as Error;
-      const mightBeDownload =
-        e.message.includes('net::ERR_ABORTED') // chromium
-        || e.message.includes('Download is starting'); // firefox + webkit
-      if (!mightBeDownload)
+      if (!e.message.includes('Download is starting')) {
+        abortDownloadEvent();
         throw e;
-      // on chromium, the download event is fired *after* page.goto rejects, so we wait a lil bit
+      }
       const download = await downloadEvent;
       if (!download)
         throw e;
@@ -395,30 +419,73 @@ export class Tab extends EventEmitter<TabEventsInterface> {
     this._requests.length = 0;
   }
 
-  async captureSnapshot(root: playwright.Locator | undefined, depth: number | undefined, boxes: boolean | undefined, relativeTo: string | undefined): Promise<TabSnapshot> {
+  async captureSnapshot(root: playwright.Locator | undefined, depth: number | undefined, boxes: boolean | undefined, relativeTo: string | undefined, ariaFormat: 'none' | 'text' | 'json' = 'text', updateWebMCP: boolean = false): Promise<TabSnapshot> {
     await this._initializedPromise;
+    // Kick the WebMCP refresh off next to the aria snapshot so its latency hides behind the tree walk.
+    const webmcpPromise = updateWebMCP ? this.updateWebMCPTools() : undefined;
     let tabSnapshot: TabSnapshot | undefined;
-    const modalStates = await this._raceAgainstModalStates(async () => {
-      const ariaSnapshot = root
-        ? await root.ariaSnapshot({ mode: 'ai', depth, boxes })
-        : await this.page.ariaSnapshot({ mode: 'ai', depth, boxes });
-      tabSnapshot = {
-        ariaSnapshot,
-        modalStates: [],
-        events: [],
-      };
-    });
+    let modalStates: ModalState[] = [];
+    if (ariaFormat !== 'none') {
+      modalStates = await this._raceAgainstModalStates(async () => {
+        if (ariaFormat === 'json') {
+          const ariaSnapshotJSON = root
+            ? await root.ariaSnapshotJSON({ mode: 'ai', depth, boxes })
+            : await this.page.ariaSnapshotJSON({ mode: 'ai', depth, boxes });
+          tabSnapshot = {
+            ariaSnapshot: '',
+            ariaSnapshotJSON,
+            modalStates: [],
+            events: [],
+          };
+        } else {
+          const ariaSnapshot = root
+            ? await root.ariaSnapshot({ mode: 'ai', depth, boxes })
+            : await this.page.ariaSnapshot({ mode: 'ai', depth, boxes });
+          tabSnapshot = {
+            ariaSnapshot,
+            modalStates: [],
+            events: [],
+          };
+        }
+      });
+    } else if (this.modalStates().length) {
+      // Matches the aria path's modal fallback below, without the race: there
+      // is no tree walk for a modal to interrupt.
+      modalStates = this.modalStates();
+    } else {
+      // The caller will not render the aria snapshot, so skip the accessibility
+      // tree walk, which dominates response latency on heavy pages. Console and
+      // events are still reported via the shared tail below.
+      tabSnapshot = { ariaSnapshot: '', modalStates: [], events: [] };
+    }
     if (tabSnapshot) {
       tabSnapshot.consoleLink = await this._consoleLog.take(relativeTo);
       tabSnapshot.events = this._recentEventEntries;
       this._recentEventEntries = [];
     }
 
-    return tabSnapshot ?? {
+    const result = tabSnapshot ?? {
       ariaSnapshot: '',
       modalStates,
       events: [],
     };
+    if (webmcpPromise)
+      await this._raceAgainstModalStates(() => webmcpPromise);
+    return result;
+  }
+
+  webmcpTools(): WebMCPListing | undefined {
+    return this._webmcpTools;
+  }
+
+  async updateWebMCPTools(): Promise<void> {
+    if (this._javaScriptBlocked())
+      return;
+    const listing = await listWebMCPTools(this);
+    // A dialog that opened while probing produces the same empty listing as a page
+    // with no tools, so keep what we had rather than clobbering the cache with it.
+    if (!this._javaScriptBlocked())
+      this._webmcpTools = listing;
   }
 
   private _javaScriptBlocked(): boolean {
@@ -447,12 +514,12 @@ export class Tab extends EventEmitter<TabEventsInterface> {
     await this._raceAgainstModalStates(() => waitForCompletion(this, callback));
   }
 
-  async targetLocator(params: { element?: string, target: string }): Promise<{ locator: playwright.Locator, resolved: string }> {
+  async targetLocator(params: { element?: string, target: string }): Promise<{ locator: playwright.Locator, resolved: string, selector: string }> {
     await this._initializedPromise;
     return (await this.targetLocators([params]))[0];
   }
 
-  async targetLocators(params: { element?: string, target: string }[]): Promise<{ locator: playwright.Locator, resolved: string }[]> {
+  async targetLocators(params: { element?: string, target: string }[]): Promise<{ locator: playwright.Locator, resolved: string, selector: string }[]> {
     await this._initializedPromise;
     return Promise.all(params.map(async param => {
       if (!param.target.match(/^(f\d+)?e\d+$/)) {
@@ -461,14 +528,14 @@ export class Tab extends EventEmitter<TabEventsInterface> {
         if (!handle)
           throw new Error(`"${param.target}" does not match any elements.`);
         handle.dispose().catch(() => {});
-        return { locator: this.page.locator(selector), resolved: asLocator('javascript', selector) };
+        return { locator: this.page.locator(selector), resolved: asLocator('javascript', selector), selector };
       } else {
         try {
           let locator = this.page.locator(`aria-ref=${param.target}`);
           if (param.element)
             locator = locator.describe(param.element);
           const resolved = await locator.normalize();
-          return { locator, resolved: resolved.toString() };
+          return { locator, resolved: resolved.toString(), selector: locatorSelector(resolved) };
         } catch (e) {
           throw new Error(`Ref ${param.target} not found in the current page snapshot. Try capturing new snapshot.`);
         }
@@ -492,6 +559,10 @@ export type ConsoleMessage = {
   text: string;
   toString(): string;
 };
+
+export function locatorSelector(locator: playwright.Locator): string {
+  return (locator as unknown as { _selector: string })._selector;
+}
 
 function messageToConsoleMessage(message: playwright.ConsoleMessage): ConsoleMessage {
   return {
@@ -582,7 +653,10 @@ function tabHeaderEquals(a: TabHeader, b: TabHeader): boolean {
       a.url === b.url &&
       a.current === b.current &&
       a.crashed === b.crashed &&
+      a.mainDocumentStatus?.status === b.mainDocumentStatus?.status &&
+      a.mainDocumentStatus?.statusText === b.mainDocumentStatus?.statusText &&
       a.console.errors === b.console.errors &&
       a.console.warnings === b.console.warnings &&
-      a.console.total === b.console.total;
+      a.console.total === b.console.total &&
+      a.webmcpToolCount === b.webmcpToolCount;
 }

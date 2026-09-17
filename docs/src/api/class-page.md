@@ -319,6 +319,12 @@ page.RequestFailed += (_, request) =>
 When no [`event: Page.dialog`] or [`event: BrowserContext.dialog`] listeners are present, all dialogs are automatically dismissed.
 :::
 
+## event: Page.dialogClosed
+* since: v1.63
+- argument: <[Dialog]>
+
+Emitted when a JavaScript dialog has been closed, either by [`method: Dialog.accept`], by [`method: Dialog.dismiss`], or manually by the user in the headed browser.
+
 ## event: Page.DOMContentLoaded
 * since: v1.9
 - argument: <[Page]>
@@ -650,6 +656,9 @@ Path to the JavaScript file. If `path` is a relative path, then it is resolved r
 - `script` ?<[string]>
 
 Script to be evaluated in all pages in the browser context. Optional.
+
+### option: Page.addInitScript.exposeFunctions = %%-js-init-script-expose-functions-%%
+* since: v1.62
 
 ## async method: Page.addScriptTag
 * since: v1.8
@@ -1412,6 +1421,9 @@ var html = await page.EvalOnSelectorAsync(".main-container", "(e, suffix) => e.o
 
 Optional argument to pass to [`param: expression`].
 
+### option: Page.evalOnSelector.world = %%-js-evaluate-world-%%
+* since: v1.64
+
 ### option: Page.evalOnSelector.strict = %%-input-strict-%%
 * since: v1.14
 
@@ -1466,6 +1478,9 @@ var divsCount = await page.EvalOnSelectorAllAsync<bool>("div", "(divs, min) => d
 - `arg` ?<[EvaluationArgument]>
 
 Optional argument to pass to [`param: expression`].
+
+### option: Page.evalOnSelectorAll.world = %%-js-evaluate-world-%%
+* since: v1.64
 
 ## async method: Page.evaluate
 * since: v1.8
@@ -1587,6 +1602,15 @@ await bodyHandle.DisposeAsync();
 
 Optional argument to pass to [`param: expression`].
 
+### option: Page.evaluate.exposeFunctions = %%-js-evaluate-expose-functions-%%
+* since: v1.62
+
+### option: Page.evaluate.serialize = %%-js-evaluate-serialize-%%
+* since: v1.64
+
+### option: Page.evaluate.world = %%-js-evaluate-world-%%
+* since: v1.64
+
 ## async method: Page.evaluateHandle
 * since: v1.8
 - returns: <[JSHandle]>
@@ -1695,6 +1719,12 @@ await resultHandle.DisposeAsync();
 - `arg` ?<[EvaluationArgument]>
 
 Optional argument to pass to [`param: expression`].
+
+### option: Page.evaluateHandle.exposeFunctions = %%-js-evaluate-expose-functions-%%
+* since: v1.62
+
+### option: Page.evaluateHandle.serialize = %%-js-evaluate-serialize-%%
+* since: v1.64
 
 ## async method: Page.exposeBinding
 * since: v1.8
@@ -2198,6 +2228,10 @@ A glob pattern, regex pattern or predicate receiving frame's `url` as a [URL] ob
 When working with iframes, you can create a frame locator that will enter the iframe and allow selecting elements
 in that iframe.
 
+When called without [`param: selector`], the search starts in any frame on the page - the main frame or any of
+the iframes - so that you don't need to locate each iframe first. Note that the rest of the locator is resolved
+inside a single frame, just like any other locator. If it matches elements inside multiple frames, an error is thrown.
+
 **Usage**
 
 Following snippet locates element with text "Submit" in the iframe with id `my-frame`,
@@ -2228,8 +2262,38 @@ var locator = page.FrameLocator("#my-iframe").GetByText("Submit");
 await locator.ClickAsync();
 ```
 
-### param: Page.frameLocator.selector = %%-find-selector-%%
+Following snippet locates a button, either in the main frame or in one of the iframes:
+
+```js
+const locator = page.frameLocator().getByRole('button');
+await locator.click();
+```
+
+```java
+Locator locator = page.frameLocator().getByRole(AriaRole.BUTTON);
+locator.click();
+```
+
+```python async
+locator = page.frame_locator().get_by_role("button")
+await locator.click()
+```
+
+```python sync
+locator = page.frame_locator().get_by_role("button")
+locator.click()
+```
+
+```csharp
+var locator = page.FrameLocator().GetByRole(AriaRole.Button);
+await locator.ClickAsync();
+```
+
+### param: Page.frameLocator.selector
 * since: v1.17
+- `selector` ?<[string]>
+
+A selector that matches the frame element. When not specified, locator is matched in any frame on the page.
 
 ## method: Page.frames
 * since: v1.8
@@ -2310,8 +2374,6 @@ Attribute name to get the value for.
 
 ### option: Page.getByRole.description = %%-locator-get-by-role-option-description-%%
 
-### option: Page.getByRole.busy = %%-locator-get-by-role-option-busy-%%
-
 ## method: Page.getByTestId
 * since: v1.27
 - returns: <[Locator]>
@@ -2350,6 +2412,11 @@ last redirect. If cannot go back, returns `null`.
 
 Navigate to the previous page in history.
 
+:::warning
+**Testing Back/Forward Cache (BFCache) is not supported.**
+By default, Playwright disables the Back/Forward Cache across all browsers. Even if explicitly enabled, Playwright's internal state relies on network-level navigation events. Because BFCache restores unfreeze the DOM without firing these events, using `page.goBack()` or `page.goForward()` to trigger a BFCache restore will result in timeouts and a desynchronized `Page` state.
+:::
+
 ### option: Page.goBack.waitUntil = %%-navigation-wait-until-%%
 * since: v1.8
 
@@ -2369,6 +2436,11 @@ Returns the main resource response. In case of multiple redirects, the navigatio
 last redirect. If cannot go forward, returns `null`.
 
 Navigate to the next page in history.
+
+:::warning
+**Testing Back/Forward Cache (BFCache) is not supported.**
+By default, Playwright disables the Back/Forward Cache across all browsers. Even if explicitly enabled, Playwright's internal state relies on network-level navigation events. Because BFCache restores unfreeze the DOM without firing these events, using `page.goBack()` or `page.goForward()` to trigger a BFCache restore will result in timeouts and a desynchronized `Page` state.
+:::
 
 ## async method: Page.requestGC
 * since: v1.48
@@ -4357,6 +4429,43 @@ When `true`, appends each element's bounding box as `[box=x,y,width,height]` to 
 relative to the viewport, in CSS pixels, as returned by [`Element.getBoundingClientRect()`](https://developer.mozilla.org/en-US/docs/Web/API/Element/getBoundingClientRect).
 Defaults to `false`.
 
+## async method: Page.ariaSnapshotJSON
+* since: v1.63
+* langs: js
+- returns: <[Serializable]>
+
+Captures the aria snapshot of the page as a free form JSON object.
+Returns the same tree as [`method: Page.ariaSnapshot`], serialized as a JSON value instead of YAML markup.
+See [`method: Locator.ariaSnapshotJSON`] for the details of the format.
+
+### option: Page.ariaSnapshotJSON.mode
+* since: v1.63
+- `mode` <[AriaSnapshotMode]<"ai"|"default">>
+
+When set to `"ai"`, returns a snapshot optimized for AI consumption: including element references like `[ref=e2]` and snapshots of `<iframe>`s. Defaults to `"default"`.
+
+### option: Page.ariaSnapshotJSON.timeout = %%-input-timeout-%%
+* since: v1.63
+
+### option: Page.ariaSnapshotJSON.timeout = %%-input-timeout-js-%%
+* since: v1.63
+
+### option: Page.ariaSnapshotJSON.signal = %%-input-signal-%%
+
+### option: Page.ariaSnapshotJSON.depth
+* since: v1.63
+- `depth` <[int]>
+
+When specified, limits the depth of the snapshot.
+
+### option: Page.ariaSnapshotJSON.boxes
+* since: v1.63
+- `boxes` <[boolean]>
+
+When `true`, includes each element's bounding box as a `box` property with `x`, `y`, `width` and `height`. Coordinates are
+relative to the viewport, in CSS pixels, as returned by [`Element.getBoundingClientRect()`](https://developer.mozilla.org/en-US/docs/Web/API/Element/getBoundingClientRect).
+Defaults to `false`.
+
 ## async method: Page.tap
 * since: v1.8
 * discouraged: Use locator-based [`method: Locator.tap`] instead. Read more about [locators](../locators.md).
@@ -4616,6 +4725,24 @@ Will throw an error if the page is closed before the [`event: Page.console`] eve
 * langs: python
 - returns: <[EventContextManager]<[ConsoleMessage]>>
 
+**Usage**
+
+```python async
+async with page.expect_console_message() as message_info:
+    await page.get_by_role("button").click()
+
+message = await message_info.value
+print(message.text)
+```
+
+```python sync
+with page.expect_console_message() as message_info:
+    page.get_by_role("button").click()
+
+message = message_info.value
+print(message.text)
+```
+
 ### param: Page.waitForConsoleMessage.action = %%-csharp-wait-for-event-action-%%
 * since: v1.12
 
@@ -4647,6 +4774,24 @@ Will throw an error if the page is closed before the download event is fired.
 * since: v1.9
 * langs: python
 - returns: <[EventContextManager]<[Download]>>
+
+**Usage**
+
+```python async
+async with page.expect_download() as download_info:
+    await page.get_by_text("Download").click()
+
+download = await download_info.value
+print(download.url)
+```
+
+```python sync
+with page.expect_download() as download_info:
+    page.get_by_text("Download").click()
+
+download = download_info.value
+print(download.url)
+```
 
 ### param: Page.waitForDownload.action = %%-csharp-wait-for-event-action-%%
 * since: v1.12
@@ -4733,6 +4878,24 @@ Will throw an error if the page is closed before the file chooser is opened.
 * since: v1.9
 * langs: python
 - returns: <[EventContextManager]<[FileChooser]>>
+
+**Usage**
+
+```python async
+async with page.expect_file_chooser() as fc_info:
+    await page.get_by_text("Upload").click()
+
+file_chooser = await fc_info.value
+await file_chooser.set_files("myfile.pdf")
+```
+
+```python sync
+with page.expect_file_chooser() as fc_info:
+    page.get_by_text("Upload").click()
+
+file_chooser = fc_info.value
+file_chooser.set_files("myfile.pdf")
+```
 
 ### param: Page.waitForFileChooser.action = %%-csharp-wait-for-event-action-%%
 * since: v1.12
@@ -5093,6 +5256,24 @@ Will throw an error if the page is closed before the popup event is fired.
 * langs: python
 - returns: <[EventContextManager]<[Page]>>
 
+**Usage**
+
+```python async
+async with page.expect_popup() as popup_info:
+    await page.get_by_text("Open popup").click()
+
+popup = await popup_info.value
+print(await popup.title())
+```
+
+```python sync
+with page.expect_popup() as popup_info:
+    page.get_by_text("Open popup").click()
+
+popup = popup_info.value
+print(popup.title())
+```
+
 ### param: Page.waitForPopup.action = %%-csharp-wait-for-event-action-%%
 * since: v1.12
 
@@ -5234,6 +5415,24 @@ Will throw an error if the page is closed before the [`event: Page.requestFinish
 * since: v1.12
 * langs: python
 - returns: <[EventContextManager]<[Request]>>
+
+**Usage**
+
+```python async
+async with page.expect_request_finished() as request_info:
+    await page.get_by_text("Trigger request").click()
+
+request = await request_info.value
+print(request.url)
+```
+
+```python sync
+with page.expect_request_finished() as request_info:
+    page.get_by_text("Trigger request").click()
+
+request = request_info.value
+print(request.url)
+```
 
 ### param: Page.waitForRequestFinished.action = %%-csharp-wait-for-event-action-%%
 * since: v1.12
@@ -5639,6 +5838,24 @@ Will throw an error if the page is closed before the WebSocket event is fired.
 * langs: python
 - returns: <[EventContextManager]<[WebSocket]>>
 
+**Usage**
+
+```python async
+async with page.expect_websocket() as ws_info:
+    await page.get_by_text("Connect").click()
+
+ws = await ws_info.value
+print(ws.url)
+```
+
+```python sync
+with page.expect_websocket() as ws_info:
+    page.get_by_text("Connect").click()
+
+ws = ws_info.value
+print(ws.url)
+```
+
 ### param: Page.waitForWebSocket.action = %%-csharp-wait-for-event-action-%%
 * since: v1.12
 
@@ -5670,6 +5887,24 @@ Will throw an error if the page is closed before the worker event is fired.
 * since: v1.9
 * langs: python
 - returns: <[EventContextManager]<[Worker]>>
+
+**Usage**
+
+```python async
+async with page.expect_worker() as worker_info:
+    await page.get_by_text("Start worker").click()
+
+worker = await worker_info.value
+print(worker.url)
+```
+
+```python sync
+with page.expect_worker() as worker_info:
+    page.get_by_text("Start worker").click()
+
+worker = worker_info.value
+print(worker.url)
+```
 
 ### param: Page.waitForWorker.action = %%-csharp-wait-for-event-action-%%
 * since: v1.12

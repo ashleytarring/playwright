@@ -16,7 +16,7 @@
  */
 
 import type { HeadersArray, Point, Size } from '@isomorphic/types';
-export type { HeadersArray, Point, Quad, Rect, Size } from '@isomorphic/types';
+export type { HeadersArray, Point, Quad, Rect, Size, DeviceDescriptor, Devices } from '@isomorphic/types';
 import type * as channels from './channels';
 import type { ProxySettings } from '@utils/network';
 
@@ -58,13 +58,6 @@ export type ScreencastFrame = {
   viewportHeight: number,
 };
 
-export type Credentials = {
-  username: string;
-  password: string;
-  origin?: string;
-  sendImmediately?: boolean;
-};
-
 export type Geolocation = {
   longitude: number;
   latitude: number;
@@ -94,15 +87,6 @@ export type ForcedColors = 'active' | 'none' | 'no-override';
 
 export type Contrast = 'no-preference' | 'more' | 'no-override';
 
-export type DeviceDescriptor = {
-  userAgent: string,
-  viewport: Size,
-  deviceScaleFactor: number,
-  isMobile: boolean,
-  hasTouch: boolean,
-  defaultBrowserType: 'chromium' | 'firefox' | 'webkit'
-};
-export type Devices = { [name: string]: DeviceDescriptor };
 export type { ProxySettings } from '@utils/network';
 
 export type KeyboardModifier = 'Alt' | 'Control' | 'Meta' | 'Shift';

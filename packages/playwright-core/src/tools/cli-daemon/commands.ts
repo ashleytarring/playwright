@@ -48,7 +48,10 @@ const open = declareCommand({
   options: z.object({
     browser: z.string().optional().describe('Browser or chrome channel to use, possible values: chrome, firefox, webkit, msedge.'),
     config: z.string().optional().describe('Path to the configuration file, defaults to .playwright/cli.config.json'),
+    device: z.string().optional().describe('Emulate a specific device, for example "iPhone 15".'),
     headed: z.boolean().optional().describe('Run browser in headed mode'),
+    ['idle-timeout']: numberArg.optional().describe('Shut the session down after this many milliseconds without a command. Defaults to one hour for headless browsers, never for headed ones. Pass 0 to disable.'),
+    mobile: z.boolean().optional().describe('Emulate a generic mobile device (Pixel 10 for Chromium, iPhone 17 for WebKit). Mobile pages are usually lighter, which saves tokens.'),
     persistent: z.boolean().optional().describe('Use persistent browser profile'),
     profile: z.string().optional().describe('Path to a persistent user data directory.'),
   }),
@@ -69,6 +72,7 @@ const attach = declareCommand({
     extension: z.union([z.boolean(), z.string()]).optional().describe('Connect to browser extension, optionally specify browser name (e.g. --extension=chrome)'),
     config: z.string().optional().describe('Path to the configuration file, defaults to .playwright/cli.config.json'),
     session: z.string().optional().describe('Session name (defaults to bound browser name or "default")'),
+    ['idle-timeout']: numberArg.optional().describe('Detach after this many milliseconds without a command. Attached browsers are never detached by default.'),
   }),
   toolName: 'browser_snapshot',
   toolParams: () => ({ filename: '<auto>' }),
@@ -341,10 +345,10 @@ const fileUpload = declareCommand({
   description: 'Upload one or multiple files',
   category: 'core',
   args: z.object({
-    file: z.string().describe('The absolute paths to the files to upload'),
+    files: stringArrayArg.describe('The absolute paths to the files to upload'),
   }),
   toolName: 'browser_file_upload',
-  toolParams: ({ file }) => ({ paths: [file] }),
+  toolParams: ({ files }) => ({ paths: files }),
 });
 
 const check = declareCommand({
@@ -383,6 +387,20 @@ const snapshot = declareCommand({
   }),
   toolName: 'browser_snapshot',
   toolParams: ({ filename, target, depth, boxes }) => ({ filename, target, depth, boxes }),
+});
+
+const find = declareCommand({
+  name: 'find',
+  description: 'Search the page snapshot for text or a regexp, returning matching nodes with surrounding context (like search snippets)',
+  category: 'core',
+  args: z.object({
+    text: z.string().optional().describe('Plain text to search for in the page snapshot (case-insensitive substring match)'),
+  }),
+  options: z.object({
+    regex: z.string().optional().describe('Regular expression to search for in the page snapshot. Provide either a text argument or --regex, not both.'),
+  }),
+  toolName: 'browser_find',
+  toolParams: ({ text, regex }) => ({ text, regex }),
 });
 
 const generateLocator = declareCommand({
@@ -456,6 +474,106 @@ const resize = declareCommand({
   }),
   toolName: 'browser_resize',
   toolParams: ({ w: width, h: height }) => ({ width, height }),
+});
+
+const setColorScheme = declareCommand({
+  name: 'set-color-scheme',
+  description: 'Emulate the light or dark color scheme',
+  category: 'emulation',
+  args: z.object({
+    scheme: z.enum(['light', 'dark']).describe('Color scheme to emulate'),
+  }),
+  toolName: 'browser_emulate_media',
+  toolParams: ({ scheme: colorScheme }) => ({ colorScheme }),
+});
+
+const setReducedMotion = declareCommand({
+  name: 'set-reduced-motion',
+  description: 'Emulate the reduced motion preference',
+  category: 'emulation',
+  args: z.object({
+    motion: z.enum(['reduce', 'no-preference']).describe('Reduced motion preference to emulate'),
+  }),
+  toolName: 'browser_emulate_media',
+  toolParams: ({ motion: reducedMotion }) => ({ reducedMotion }),
+});
+
+const setForcedColors = declareCommand({
+  name: 'set-forced-colors',
+  description: 'Emulate forced colors mode',
+  category: 'emulation',
+  args: z.object({
+    colors: z.enum(['active', 'none']).describe('Forced colors mode to emulate'),
+  }),
+  toolName: 'browser_emulate_media',
+  toolParams: ({ colors: forcedColors }) => ({ forcedColors }),
+});
+
+const setContrast = declareCommand({
+  name: 'set-contrast',
+  description: 'Emulate the preferred contrast',
+  category: 'emulation',
+  args: z.object({
+    contrast: z.enum(['more', 'no-preference']).describe('Contrast preference to emulate'),
+  }),
+  toolName: 'browser_emulate_media',
+  toolParams: ({ contrast }) => ({ contrast }),
+});
+
+const setMedia = declareCommand({
+  name: 'set-media',
+  description: 'Emulate the CSS media type',
+  category: 'emulation',
+  args: z.object({
+    media: z.enum(['screen', 'print']).describe('CSS media type to emulate'),
+  }),
+  toolName: 'browser_emulate_media',
+  toolParams: ({ media }) => ({ media }),
+});
+
+const clearColorScheme = declareCommand({
+  name: 'clear-color-scheme',
+  description: 'Clear color scheme emulation',
+  category: 'emulation',
+  args: z.object({}),
+  toolName: 'browser_emulate_media',
+  toolParams: () => ({ colorScheme: null }),
+});
+
+const clearReducedMotion = declareCommand({
+  name: 'clear-reduced-motion',
+  description: 'Clear reduced motion emulation',
+  category: 'emulation',
+  args: z.object({}),
+  toolName: 'browser_emulate_media',
+  toolParams: () => ({ reducedMotion: null }),
+});
+
+const clearForcedColors = declareCommand({
+  name: 'clear-forced-colors',
+  description: 'Clear forced colors emulation',
+  category: 'emulation',
+  args: z.object({}),
+  toolName: 'browser_emulate_media',
+  toolParams: () => ({ forcedColors: null }),
+});
+
+const clearContrast = declareCommand({
+  name: 'clear-contrast',
+  description: 'Clear preferred contrast emulation',
+  category: 'emulation',
+  args: z.object({}),
+  toolName: 'browser_emulate_media',
+  toolParams: () => ({ contrast: null }),
+});
+
+const clearMedia = declareCommand({
+  name: 'clear-media',
+  description: 'Clear CSS media type emulation',
+  category: 'emulation',
+  args: z.object({}),
+  toolName: 'browser_emulate_media',
+  toolParams: () => ({ media: null }),
 });
 
 const runCode = declareCommand({
@@ -789,12 +907,13 @@ const screenshot = declareCommand({
     target: z.string().optional().describe(elementTargetDescription),
   }),
   options: z.object({
-    filename: z.string().optional().describe('File name to save the screenshot to. Defaults to `page-{timestamp}.{png|jpeg}` if not specified.'),
+    filename: z.string().optional().describe('File name to save the screenshot to. Defaults to `page-{timestamp}.{png|jpeg|webp}` if not specified.'),
+    type: z.enum(['png', 'jpeg', 'webp']).optional().describe('Image format. If unset, inferred from the filename extension, otherwise png.'),
     ['full-page']: z.boolean().optional().describe('When true, takes a screenshot of the full scrollable page, instead of the currently visible viewport.'),
     hires: z.boolean().optional().describe('When true, captures a high-resolution screenshot using device pixels (accounts for the device pixel ratio), instead of CSS pixels.'),
   }),
   toolName: 'browser_take_screenshot',
-  toolParams: ({ target, filename, ['full-page']: fullPage, hires }) => ({ filename, target, fullPage, scale: hires ? 'device' : undefined }),
+  toolParams: ({ target, filename, type, ['full-page']: fullPage, hires }) => ({ filename, target, type, fullPage, scale: hires ? 'device' : undefined }),
 });
 
 const pdfSave = declareCommand({
@@ -915,6 +1034,22 @@ const networkResponseBody = declareCommand({
   toolParams: ({ index, filename }) => ({ index, part: 'response-body', filename }),
 });
 
+const recordingStart = declareCommand({
+  name: 'recording-start',
+  description: 'Start recording user actions',
+  category: 'devtools',
+  toolName: 'browser_start_recording',
+  toolParams: () => ({}),
+});
+
+const recordingStop = declareCommand({
+  name: 'recording-stop',
+  description: 'Stop recording user actions and print them as Playwright code',
+  category: 'devtools',
+  toolName: 'browser_stop_recording',
+  toolParams: () => ({}),
+});
+
 const tracingStart = declareCommand({
   name: 'tracing-start',
   description: 'Start trace recording',
@@ -942,11 +1077,12 @@ const videoStart = declareCommand({
   }),
   options: z.object({
     size: z.string().optional().describe('Video frame size, e.g. "800x600". If not specified, the size of the recorded video will fit 800x800.'),
+    fps: numberArg.optional().describe('Video frame rate in frames per second, defaults to 25.'),
   }),
   toolName: 'browser_start_video',
-  toolParams: ({ filename, size }) => {
+  toolParams: ({ filename, size, fps }) => {
     const parsedSize = size ? size.split('x').map(Number) : undefined;
-    return { filename, size: parsedSize ? { width: parsedSize[0], height: parsedSize[1] } : undefined };
+    return { filename, size: parsedSize ? { width: parsedSize[0], height: parsedSize[1] } : undefined, fps };
   }
 });
 
@@ -1097,6 +1233,7 @@ const install = declareCommand({
   args: z.object({}),
   options: z.object({
     skills: z.string().optional().describe('Install skills, possible values: claude (default), agents.'),
+    global: z.boolean().optional().describe('Install skills into the home directory instead of the workspace (alias: -g). Requires --skills.'),
   }),
   toolName: '',
   toolParams: () => ({}),
@@ -1130,6 +1267,46 @@ const tray = declareCommand({
   toolParams: () => ({}),
 });
 
+// WebMCP
+
+function parseWebMCPParams(params: string | undefined) {
+  if (params === undefined)
+    return undefined;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(params);
+  } catch (e) {
+    throw new Error(`error: '--params' option: expected a JSON object, received '${params}'`);
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed))
+    throw new Error(`error: '--params' option: expected a JSON object, received '${params}'`);
+  return parsed as Record<string, unknown>;
+}
+
+const webmcpList = declareCommand({
+  name: 'webmcp-list',
+  description: 'List the WebMCP tools registered by the page',
+  category: 'webmcp',
+  args: z.object({}),
+  toolName: 'browser_webmcp_list',
+  toolParams: () => ({}),
+});
+
+const webmcpCall = declareCommand({
+  name: 'webmcp-call',
+  description: 'Call a WebMCP tool registered by the page',
+  category: 'webmcp',
+  args: z.object({
+    name: z.string().describe('Name of the WebMCP tool to call'),
+  }),
+  options: z.object({
+    params: z.string().optional().describe('Tool input parameters as a JSON object, for example \'{"query":"cats"}\''),
+    frame: z.string().optional().describe('Frame that registered the tool, as reported by webmcp-list, when the tool name is ambiguous'),
+  }),
+  toolName: 'browser_webmcp_call',
+  toolParams: ({ name, params, frame }) => ({ name, params: parseWebMCPParams(params), frame }),
+});
+
 const commandsArray: AnyCommandSchema[] = [
   // core category
   open,
@@ -1149,6 +1326,7 @@ const commandsArray: AnyCommandSchema[] = [
   check,
   uncheck,
   snapshot,
+  find,
   evaluate,
   consoleList,
   dialogAccept,
@@ -1202,6 +1380,18 @@ const commandsArray: AnyCommandSchema[] = [
   sessionStorageDelete,
   sessionStorageClear,
 
+  // emulation category
+  setColorScheme,
+  setReducedMotion,
+  setForcedColors,
+  setContrast,
+  setMedia,
+  clearColorScheme,
+  clearReducedMotion,
+  clearForcedColors,
+  clearContrast,
+  clearMedia,
+
   // network category
   networkRequests,
   networkRequest,
@@ -1222,6 +1412,8 @@ const commandsArray: AnyCommandSchema[] = [
   installBrowser,
 
   // devtools category
+  recordingStart,
+  recordingStop,
   tracingStart,
   tracingStop,
   videoStart,
@@ -1240,6 +1432,10 @@ const commandsArray: AnyCommandSchema[] = [
   sessionList,
   sessionCloseAll,
   killAll,
+
+  // webmcp category
+  webmcpList,
+  webmcpCall,
 
   // Hidden commands
   tray,

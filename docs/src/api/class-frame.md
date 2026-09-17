@@ -572,6 +572,9 @@ var html = await frame.EvalOnSelectorAsync(".main-container", "(e, suffix) => e.
 
 Optional argument to pass to [`param: expression`].
 
+### option: Frame.evalOnSelector.world = %%-js-evaluate-world-%%
+* since: v1.64
+
 ### option: Frame.evalOnSelector.strict = %%-input-strict-%%
 * since: v1.14
 
@@ -628,6 +631,9 @@ var divsCount = await frame.EvalOnSelectorAllAsync<bool>("div", "(divs, min) => 
 - `arg` ?<[EvaluationArgument]>
 
 Optional argument to pass to [`param: expression`].
+
+### option: Frame.evalOnSelectorAll.world = %%-js-evaluate-world-%%
+* since: v1.64
 
 ## async method: Frame.evaluate
 * since: v1.8
@@ -745,6 +751,15 @@ await bodyHandle.DisposeAsync();
 
 Optional argument to pass to [`param: expression`].
 
+### option: Frame.evaluate.exposeFunctions = %%-js-evaluate-expose-functions-%%
+* since: v1.62
+
+### option: Frame.evaluate.serialize = %%-js-evaluate-serialize-%%
+* since: v1.64
+
+### option: Frame.evaluate.world = %%-js-evaluate-world-%%
+* since: v1.64
+
 ## async method: Frame.evaluateHandle
 * since: v1.8
 - returns: <[JSHandle]>
@@ -857,6 +872,12 @@ await resultHandle.DisposeAsync();
 
 Optional argument to pass to [`param: expression`].
 
+### option: Frame.evaluateHandle.exposeFunctions = %%-js-evaluate-expose-functions-%%
+* since: v1.62
+
+### option: Frame.evaluateHandle.serialize = %%-js-evaluate-serialize-%%
+* since: v1.64
+
 ## async method: Frame.fill
 * since: v1.8
 * discouraged: Use locator-based [`method: Locator.fill`] instead. Read more about [locators](../locators.md).
@@ -964,6 +985,10 @@ Console.WriteLine(frame == contentFrame); // -> True
 When working with iframes, you can create a frame locator that will enter the iframe and allow selecting elements
 in that iframe.
 
+When called without [`param: selector`], the search starts in this frame or in any of the iframes inside it,
+so that you don't need to locate each iframe first. Note that the rest of the locator is resolved inside a single
+frame, just like any other locator. If it matches elements inside multiple frames, an error is thrown.
+
 **Usage**
 
 Following snippet locates element with text "Submit" in the iframe with id `my-frame`, like `<iframe id="my-frame">`:
@@ -993,8 +1018,38 @@ var locator = frame.FrameLocator("#my-iframe").GetByText("Submit");
 await locator.ClickAsync();
 ```
 
-### param: Frame.frameLocator.selector = %%-find-selector-%%
+Following snippet locates a button, either in the frame or in one of the iframes inside it:
+
+```js
+const locator = frame.frameLocator().getByRole('button');
+await locator.click();
+```
+
+```java
+Locator locator = frame.frameLocator().getByRole(AriaRole.BUTTON);
+locator.click();
+```
+
+```python async
+locator = frame.frame_locator().get_by_role("button")
+await locator.click()
+```
+
+```python sync
+locator = frame.frame_locator().get_by_role("button")
+locator.click()
+```
+
+```csharp
+var locator = frame.FrameLocator().GetByRole(AriaRole.Button);
+await locator.ClickAsync();
+```
+
+### param: Frame.frameLocator.selector
 * since: v1.17
+- `selector` ?<[string]>
+
+A selector that matches the frame element. When not specified, locator is matched in this frame or in any of the iframes inside it.
 
 ## async method: Frame.getAttribute
 * since: v1.8
@@ -1068,8 +1123,6 @@ Attribute name to get the value for.
 ### option: Frame.getByRole.exact = %%-locator-get-by-role-option-exact-%%
 
 ### option: Frame.getByRole.description = %%-locator-get-by-role-option-description-%%
-
-### option: Frame.getByRole.busy = %%-locator-get-by-role-option-busy-%%
 
 ## method: Frame.getByTestId
 * since: v1.27

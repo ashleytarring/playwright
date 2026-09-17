@@ -79,6 +79,7 @@ npx playwright test --ui
 | Option | Description |
 | :--- | :--- |
 | Non-option arguments | Each argument is treated as a regular expression matched against the full test file path. Only tests from files matching the pattern will be executed. Special symbols like `$` or `*` should be escaped with `\`. In many shells/terminals you may need to quote the arguments. |
+| `--add-reporter <reporter>` | Reporter to add on top of the reporters configured in the config file, comma-separated. Can be a built-in reporter name or a path to a custom reporter file. Unlike `--reporter`, this keeps the configured reporters instead of replacing them. |
 | `-c <file>` or `--config <file>` | Configuration file, or a test directory with optional "playwright.config.&#123;m,c&#125;?&#123;js,ts&#125;". Defaults to `playwright.config.ts` or `playwright.config.js` in the current directory. |
 | `--debug` | Run tests with Playwright Inspector. Shortcut for `PWDEBUG=1` environment variable and `--timeout=0 --max-failures=1 --headed --workers=1` options. |
 | `--fail-on-flaky-tests` | Fail if any test is flagged as flaky (default: false). |
@@ -101,7 +102,7 @@ npx playwright test --ui
 | `--project <project-name...>` | Only run tests from the specified list of projects, supports '*' wildcard (default: run all projects). |
 | `--quiet` | Suppress stdio. |
 | `--repeat-each <N>` | Run each test `N` times (default: 1). |
-| `--reporter <reporter>` | Reporter to use, comma-separated, can be "dot", "line", "list", or others (default: "list"). You can also pass a path to a custom reporter file. |
+| `--reporter <reporter>` | Reporter to use, comma-separated, can be "dot", "line", "list", or others (default: "list" locally and "dot" on CI). You can also pass a path to a custom reporter file. |
 | `--retries <retries>` | Maximum retry count for flaky tests, zero for no retries (default: no retries). |
 | `--shard <shard>` | Shard tests and execute only the selected shard, specified in the form "current/all", 1-based, e.g., "3/5". |
 | `--test-list <file>` | Path to a file containing a list of tests to run. See [test list](#test-list) for details. |
@@ -112,7 +113,7 @@ npx playwright test --ui
 | `--ui` | Run tests in interactive UI mode. |
 | `--ui-host <host>` | Host to serve UI on; specifying this option opens UI in a browser tab. |
 | `--ui-port <port>` | Port to serve UI on, 0 for any free port; specifying this option opens UI in a browser tab. |
-| `-u` or `--update-snapshots [mode]` | Update snapshots with actual results. Possible values are "all", "changed", "missing", and "none". Running tests without the flag defaults to "missing"; running tests with the flag but without a value defaults to "changed". |
+| `-u` or `--update-snapshots [mode]` | Update snapshots with actual results. Possible values are "all", "changed", "missing", "none" and "default". Running tests without the flag defaults to "default"; running tests with the flag but without a value defaults to "changed". |
 | `--update-source-method [mode]` | Update snapshots with actual results. Possible values are "patch" (default), "3way" and "overwrite". "Patch" creates a unified diff file that can be used to update the source code later. "3way" generates merge conflict markers in source code. "Overwrite" overwrites the source code with the new snapshot values.|
 | `-x` | Stop after the first failure. |
 
@@ -219,6 +220,7 @@ npx playwright install --with-deps
 | `--dry-run` | Don't perform installation, just print information |
 | `--only-shell` | Only install chromium-headless-shell instead of full Chromium |
 | `--no-shell` | Don't install chromium-headless-shell |
+| `--no-remove` | Don't remove unused browsers |
 
 #### Install Deps Options
 
@@ -315,7 +317,7 @@ npx playwright merge-reports ./reports
 | Option | Description |
 | :--- | :--- |
 | `-c, --config <file>` | Configuration file. Can be used to specify additional configuration for the output report |
-| `--reporter <reporter>` | Reporter to use, comma-separated, can be "list", "line", "dot", "json", "junit", "null", "github", "html", "blob" (default: "list") |
+| `--reporter <reporter>` | Reporter to use, comma-separated, can be "list", "line", "dot", "json", "junit", "null", "github", "html", "blob" (default: "list" locally and "dot" on CI) |
 
 ### Clear Cache
 

@@ -21,14 +21,13 @@ import { TLSSocket } from 'tls';
 import * as zlib from 'zlib';
 
 import { createGuid } from '@utils/crypto';
-import { httpHappyEyeballsAgent, httpsHappyEyeballsAgent, timingForSocket } from '@utils/happyEyeballs';
 import { assert } from '@isomorphic/assert';
-import { constructURLBasedOnBaseURL, urlMatches } from '@isomorphic/urlMatch';
+import { constructURLBasedOnBaseURL } from '@isomorphic/urlMatch';
 import { eventsHelper } from '@utils/eventsHelper';
 import { monotonicTime } from '@isomorphic/time';
-import { createProxyAgent } from '@utils/network';
+import { createProxyAgent, flattenAggregateError, happyEyeballsOptions } from '@utils/network';
 import { getUserAgent } from './userAgent';
-import { BrowserContext, verifyClientCertificates } from './browserContext';
+import { BrowserContext, findMatchingHttpCredentials, verifyClientCertificates } from './browserContext';
 import { Cookie, CookieStore, domainMatches, parseRawCookie } from './cookieStore';
 import { MultipartFormData } from './formData';
 import { TargetClosedError } from './errors';
@@ -43,10 +42,10 @@ import type { Playwright } from './playwright';
 import type { Progress } from './progress';
 import type * as types from './types';
 import type { HeadersArray, ProxySettings } from './types';
-import type { HTTPCredentials } from '../../types/types';
+import type { HttpCredentials } from '@protocol/structs';
 import type { RegisteredListener } from '@utils/eventsHelper';
 import type * as channels from './channels';
-import type * as har from '@trace/har';
+import type * as har from '@isomorphic/trace/versions/har';
 import type { LookupAddress } from 'dns';
 import type { Readable, TransformCallback } from 'stream';
 
@@ -55,7 +54,7 @@ type FetchRequestOptions = {
   userAgent: string;
   extraHTTPHeaders?: HeadersArray;
   failOnStatusCode?: boolean;
-  httpCredentials?: HTTPCredentials;
+  httpCredentials?: HttpCredentials[];
   proxy?: ProxySettings;
   ignoreHTTPSErrors?: boolean;
   maxRedirects?: number;
@@ -113,6 +112,12 @@ export abstract class APIRequestContext extends SdkObject {
   protected static allInstances: Set<APIRequestContext> = new Set();
   _closeReason: string | undefined;
   private _disposed = false;
+  // Certificate details observed during a full TLS handshake are cached by endpoint, so that
+  // future requests that use a resumed TLS session can report security details.
+  private _certificateDetails = new Map<string, har.SecurityDetails>();
+  // Custom https agent ensures that we have our own TLS connection, and not reuse an existing
+  // one from the global Node.js agent.
+  private _agentForProtocol = new Map<string, http.Agent>();
 
   static findResponseBody(guid: string): Buffer | undefined {
     for (const request of APIRequestContext.allInstances) {
@@ -125,10 +130,11 @@ export abstract class APIRequestContext extends SdkObject {
 
   constructor(parent: SdkObject) {
     super(parent, 'request-context');
+    this.attribution.context = this;
     APIRequestContext.allInstances.add(this);
   }
 
-  abstract storageState(progress: Progress, indexedDB?: boolean): Promise<channels.APIRequestContextStorageStateResult>;
+  abstract storageState(progress: Progress, params: { indexedDB?: boolean, opfs?: boolean }): Promise<channels.APIRequestContextStorageStateResult>;
 
   fetchResponseBody(progress: Progress, fetchUid: string): Buffer | undefined {
     return this.fetchResponses.get(fetchUid);
@@ -150,16 +156,27 @@ export abstract class APIRequestContext extends SdkObject {
   abstract addCookies(cookies: channels.NetworkCookie[]): Promise<void>;
   abstract cookies(progress: Progress, url: URL): Promise<channels.NetworkCookie[]>;
 
-  protected async _lookupInHar(progress: Progress, url: URL, method: string, headers: HeadersObject, postData: Buffer | undefined, maxRedirects: number): Promise<SendRequestResult | undefined> {
-    return undefined;
-  }
-
   protected _disposeImpl() {
     this._disposed = true;
     APIRequestContext.allInstances.delete(this);
     this.fetchResponses.clear();
     this.fetchLog.clear();
+    for (const agent of this._agentForProtocol.values())
+      agent.destroy();
+    this._agentForProtocol.clear();
+    this._certificateDetails.clear();
     this.emit(APIRequestContext.Events.Dispose);
+  }
+
+  private _ensureAgent(protocol: string): http.Agent {
+    let agent = this._agentForProtocol.get(protocol);
+    if (!agent) {
+      // Aligned with the default Node.js global agent options. Connection options such as
+      // `lookup` stay per-request, since agent options take precedence over request ones.
+      agent = protocol === 'https:' ? new https.Agent({ keepAlive: true }) : new http.Agent({ keepAlive: true });
+      this._agentForProtocol.set(protocol, agent);
+    }
+    return agent;
   }
 
   _disposeResponse(fetchUid: string) {
@@ -229,9 +246,7 @@ export abstract class APIRequestContext extends SdkObject {
     const postData = serializePostData(params, headers);
     if (postData)
       setHeader(headers, 'content-length', String(postData.byteLength));
-    const { body, log, response } =
-      (await this._lookupInHar(progress, requestUrl, method, headers, postData, maxRedirects)) ||
-      (await this._sendRequestWithRetries(progress, requestUrl, options, postData, params.maxRetries));
+    const { body, log, response } = await this._sendRequestWithRetries(progress, requestUrl, options, postData, params.maxRetries);
     const failOnStatusCode = params.failOnStatusCode !== undefined ? params.failOnStatusCode : !!defaults.failOnStatusCode;
     if (failOnStatusCode && (response.status < 200 || response.status >= 400)) {
       let responseText = '';
@@ -248,7 +263,7 @@ export abstract class APIRequestContext extends SdkObject {
     return { ...response, fetchUid };
   }
 
-  _parseSetCookieHeader(responseUrl: string, setCookie: string[] | undefined): channels.NetworkCookie[] {
+  private _parseSetCookieHeader(responseUrl: string, setCookie: string[] | undefined): channels.NetworkCookie[] {
     if (!setCookie)
       return [];
     const url = new URL(responseUrl);
@@ -275,7 +290,7 @@ export abstract class APIRequestContext extends SdkObject {
     return cookies;
   }
 
-  async _updateRequestCookieHeader(progress: Progress, url: URL, headers: HeadersObject) {
+  private async _updateRequestCookieHeader(progress: Progress, url: URL, headers: HeadersObject) {
     if (getHeader(headers, 'cookie') !== undefined)
       return;
     const contextCookies = await this.cookies(progress, url);
@@ -347,11 +362,16 @@ export abstract class APIRequestContext extends SdkObject {
     const resultPromise = new Promise<SendRequestResult>((fulfill, reject) => {
       const requestConstructor: ((url: URL, options: http.RequestOptions, callback?: (res: http.IncomingMessage) => void) => http.ClientRequest)
         = (url.protocol === 'https:' ? https : http).request;
-      // If we have a proxy agent already, do not override it.
-      const agent = options.agent || (url.protocol === 'https:' ? httpsHappyEyeballsAgent : httpHappyEyeballsAgent);
-      const requestOptions = { ...options, agent };
+      // Without an explicit proxy agent, use this context's own agent, which has
+      // keep-alive enabled and connects with Happy Eyeballs (autoSelectFamily).
+      // Resolved per request so that a cross-protocol redirect picks the right agent.
+      const requestOptions = { ...options, ...happyEyeballsOptions };
+      requestOptions.agent = options.agent ?? this._ensureAgent(url.protocol);
+      if (options.__testHookLookup)
+        requestOptions.lookup = lookupWithTestHook(options.__testHookLookup);
 
       const startAt = monotonicTime();
+      const startAtWallTime = Date.now();
       let reusedSocketAt: number | undefined;
       let dnsLookupAt: number | undefined;
       let tcpConnectionAt: number | undefined;
@@ -361,10 +381,21 @@ export abstract class APIRequestContext extends SdkObject {
       let serverPort: number | undefined;
 
       let securityDetails: har.SecurityDetails | undefined;
+      const certificateCacheKey = `${url.host}:${(options as https.RequestOptions).servername ?? ''}`;
+      let responseReceived = false;
 
       const listeners: RegisteredListener[] = [];
 
+      const handleRequestError = (error: Error) => {
+        // Write errors after we received a response are swallowed, following undici behaviour:
+        // https://github.com/nodejs/undici/blob/01a912e49a50c48009ed2639d2a457a6ec26752a/lib/dispatcher/client-h1.js#L735
+        if (responseReceived && isNetworkConnectionError(error))
+          return;
+        reject(flattenAggregateError(error));
+      };
+
       const request = requestConstructor(url, requestOptions as any, async response => {
+        responseReceived = true;
         const responseAt = monotonicTime();
 
         const notifyRequestFinished = (body?: Buffer) => {
@@ -379,6 +410,19 @@ export abstract class APIRequestContext extends SdkObject {
             connect: connectEnd ? connectEnd - startAt : -1, // "If [ssl] is defined then the time is also included in the connect field "
             ssl: tlsHandshakeAt ? tlsHandshakeAt - tcpConnectionAt! : -1,
             blocked: reusedSocketAt ? reusedSocketAt - startAt : -1,
+          };
+
+          // spec: https://developer.mozilla.org/en-US/docs/Web/API/PerformanceResourceTiming
+          const requestStartAt = connectEnd ?? reusedSocketAt;
+          const resourceTiming: channels.ResourceTiming = {
+            startTime: startAtWallTime,
+            domainLookupStart: dnsLookupAt ? 0 : -1,
+            domainLookupEnd: dnsLookupAt ? dnsLookupAt - startAt : -1,
+            connectStart: tcpConnectionAt ? (dnsLookupAt ?? startAt) - startAt : -1,
+            secureConnectionStart: tlsHandshakeAt && tcpConnectionAt ? tcpConnectionAt - startAt : -1,
+            connectEnd: connectEnd ? connectEnd - startAt : -1,
+            requestStart: requestStartAt ? requestStartAt - startAt : -1,
+            responseStart: responseAt - startAt,
           };
 
           const requestFinishedEvent: APIRequestFinishedEvent = {
@@ -396,6 +440,7 @@ export abstract class APIRequestContext extends SdkObject {
             securityDetails,
           };
           this.emit(APIRequestContext.Events.RequestFinished, requestFinishedEvent);
+          return { resourceTiming, responseEndTiming: endAt - startAt };
         };
         fetchLog(`← ${response.statusCode} ${response.statusMessage}`);
         for (const [name, value] of Object.entries(response.headers))
@@ -461,8 +506,7 @@ export abstract class APIRequestContext extends SdkObject {
               return;
             }
 
-            if (headers['host'])
-              headers['host'] = locationURL.host;
+            setHeader(headers, 'host', locationURL.host);
 
             // Drop credentials scoped to the original origin on cross-origin redirects.
             if (locationURL.origin !== url.origin)
@@ -493,7 +537,7 @@ export abstract class APIRequestContext extends SdkObject {
         const chunks: Buffer[] = [];
         const notifyBodyFinished = () => {
           const body = Buffer.concat(chunks);
-          notifyRequestFinished(body);
+          const { resourceTiming, responseEndTiming } = notifyRequestFinished(body);
           fulfill({
             body,
             log,
@@ -504,6 +548,8 @@ export abstract class APIRequestContext extends SdkObject {
               headers: toHeadersArray(response.rawHeaders),
               securityDetails,
               serverAddr: serverIPAddress !== undefined && serverPort !== undefined ? { ipAddress: serverIPAddress, port: serverPort } : undefined,
+              timing: resourceTiming,
+              responseEndTiming,
             },
           });
         };
@@ -549,7 +595,7 @@ export abstract class APIRequestContext extends SdkObject {
         body.on('data', chunk => chunks.push(chunk));
         body.on('end', notifyBodyFinished);
       });
-      request.on('error', reject);
+      request.on('error', handleRequestError);
       destroyRequest = () => request.destroy();
 
       listeners.push(
@@ -563,19 +609,36 @@ export abstract class APIRequestContext extends SdkObject {
       const captureSecurityDetails = (socket: net.Socket) => {
         if (!(socket instanceof TLSSocket))
           return;
+        const protocol = socket.getProtocol() ?? undefined;
         const peerCertificate = socket.getPeerCertificate();
+        if (!peerCertificate.valid_from) {
+          // A resumed TLS session returns an empty getPeerCertificate(), and we use the cached data.
+          securityDetails = { ...this._certificateDetails.get(certificateCacheKey), protocol };
+          return;
+        }
+        // Multi-value RDNs are reported as string arrays, take the first common name.
+        const commonName = (field: string | string[] | undefined) => Array.isArray(field) ? field[0] : field;
         securityDetails = {
-          protocol: socket.getProtocol() ?? undefined,
-          subjectName: peerCertificate.subject.CN as string,
+          protocol,
+          subjectName: commonName(peerCertificate.subject?.CN),
           validFrom: new Date(peerCertificate.valid_from).getTime() / 1000,
           validTo: new Date(peerCertificate.valid_to).getTime() / 1000,
-          issuer: peerCertificate.issuer.CN as string
+          issuer: commonName(peerCertificate.issuer?.CN)
         };
+        this._certificateDetails.set(certificateCacheKey, securityDetails);
       };
 
       request.on('socket', socket => {
         serverIPAddress = socket.remoteAddress;
         serverPort = socket.remotePort;
+
+        socket.on('error', handleRequestError);
+        // Drop on keep-alive reuse so listeners do not accumulate. Keep if destroyed:
+        // a late write EPIPE may still fire after a refused-body reset.
+        request.once('close', () => {
+          if (!socket.destroyed)
+            socket.off('error', handleRequestError);
+        });
 
         if (request.reusedSocket) {
           reusedSocketAt = monotonicTime();
@@ -583,15 +646,13 @@ export abstract class APIRequestContext extends SdkObject {
           return;
         }
 
-        // happy eyeballs don't emit lookup and connect events, so we use our custom ones
-        const happyEyeBallsTimings = timingForSocket(socket);
-        dnsLookupAt = happyEyeBallsTimings.dnsLookupAt;
-        tcpConnectionAt = happyEyeBallsTimings.tcpConnectionAt;
-
-        // non-happy-eyeballs sockets
         listeners.push(
             eventsHelper.addEventListener(socket, 'lookup', () => { dnsLookupAt = monotonicTime(); }),
-            eventsHelper.addEventListener(socket, 'connect', () => { tcpConnectionAt = monotonicTime(); }),
+            eventsHelper.addEventListener(socket, 'connect', () => {
+              tcpConnectionAt = monotonicTime();
+              serverIPAddress = socket.remoteAddress;
+              serverPort = socket.remotePort;
+            }),
             eventsHelper.addEventListener(socket, 'secureConnect', () => {
               tlsHandshakeAt = monotonicTime();
               captureSecurityDetails(socket);
@@ -620,9 +681,7 @@ export abstract class APIRequestContext extends SdkObject {
   }
 
   private _getHttpCredentials(url: URL) {
-    if (!this._defaultOptions().httpCredentials?.origin || url.origin.toLowerCase() === this._defaultOptions().httpCredentials?.origin?.toLowerCase())
-      return this._defaultOptions().httpCredentials;
-    return undefined;
+    return findMatchingHttpCredentials(this._defaultOptions().httpCredentials, url.toString());
   }
 }
 
@@ -648,19 +707,22 @@ class SafeEmptyStreamTransform extends Transform {
 
 export class BrowserContextAPIRequestContext extends APIRequestContext {
   private readonly _context: BrowserContext;
+  private readonly _tracing: Tracing;
 
   constructor(context: BrowserContext) {
     super(context);
     this._context = context;
+    this._tracing = new Tracing(this, context._browser.options.tracesDir);
     context.once(BrowserContext.Events.Close, () => this._disposeImpl());
   }
 
   override tracing() {
-    return this._context.tracing;
+    return this._tracing;
   }
 
   override async dispose(options: { reason?: string }) {
     this._closeReason = options.reason;
+    await this._tracing.flush();
     this.fetchResponses.clear();
   }
 
@@ -685,116 +747,8 @@ export class BrowserContextAPIRequestContext extends APIRequestContext {
     return await this._context.cookies(progress, url.toString());
   }
 
-  override async storageState(progress: Progress, indexedDB?: boolean): Promise<channels.APIRequestContextStorageStateResult> {
-    return this._context.storageState(progress, indexedDB);
-  }
-
-  protected override async _lookupInHar(progress: Progress, url: URL, method: string, headers: HeadersObject, postData: Buffer | undefined, maxRedirects: number): Promise<SendRequestResult | undefined> {
-    const registrations = this._context.harForAPIRequests();
-    if (!registrations.length)
-      return undefined;
-
-    const log: string[] = [];
-    const fetchLog = (message: string) => {
-      log.push(message);
-      progress.log(message);
-    };
-
-    await this._updateRequestCookieHeader(progress, url, headers);
-
-    const urlString = url.toString();
-    fetchLog(`→ ${method} ${urlString}`);
-    const headersArray: HeadersArray = Object.entries(headers).map(([name, value]) => ({ name, value }));
-    for (const registration of [...registrations]) {
-      if (!urlMatches(registration.baseURL, urlString, registration.urlMatch))
-        continue;
-      const lookupResult = await progress.race(registration.harBackend.lookup(urlString, method, headersArray, postData, false, { apiRequestOnly: true, maxRedirects }));
-      if (lookupResult.action === 'error') {
-        const message = lookupResult.message ? ` :${lookupResult.message}` : '';
-        fetchLog(`HAR: lookup failed${message}`);
-        if (registration.notFound === 'abort')
-          throw new Error(`Request "${method} ${urlString}" failed to lookup in the HAR file${message}`);
-        continue;
-      }
-
-      if (lookupResult.action === 'noentry') {
-        fetchLog(`HAR: no entry found`);
-        if (registration.notFound === 'abort')
-          throw new Error(`Request "${method} ${urlString}" was not found in the HAR file`);
-        continue;
-      }
-
-      const finalUrl = lookupResult.url ?? urlString;
-      const status = lookupResult.status ?? 0;
-      const statusText = lookupResult.statusText ?? '';
-      const responseHeaders = lookupResult.headers ?? [];
-      const body = lookupResult.body ?? Buffer.from('');
-      fetchLog(`← ${status} ${statusText} (from HAR)`);
-      for (const { name, value } of responseHeaders)
-        fetchLog(`  ${name}: ${value}`);
-
-      // Emit Request/RequestFinished here (not before the loop) so that we do not double-emit
-      // when there is no match and we fall through to the live request path, which emits them too.
-      const requestCookies = getHeader(headers, 'cookie')?.split(';').map(p => {
-        const indexOfEquals = p.indexOf('=');
-        const name = indexOfEquals !== -1 ? p.substring(0, indexOfEquals).trim() : p.trim();
-        const value = indexOfEquals !== -1 ? p.substring(indexOfEquals + 1).trim() : '';
-        return { name, value };
-      }) || [];
-      const requestEvent: APIRequestEvent = {
-        url,
-        method,
-        headers,
-        cookies: requestCookies,
-        postData,
-      };
-      this.emit(APIRequestContext.Events.Request, requestEvent);
-
-      const setCookie = responseHeaders.filter(h => h.name.toLowerCase() === 'set-cookie').map(h => h.value);
-      const cookies = this._parseSetCookieHeader(finalUrl, setCookie);
-      if (cookies.length) {
-        try {
-          await progress.race(this.addCookies(cookies));
-        } catch (e) {
-          // Cookie value is limited by 4096 characters in the browsers. If setCookies failed,
-          // we try setting each cookie individually just in case only some of them are bad.
-          await progress.race(Promise.all(cookies.map(c => this.addCookies([c]).catch(() => {}))));
-        }
-      }
-
-      const serverAddr = lookupResult.serverIPAddress !== undefined && lookupResult.serverPort !== undefined ?
-        { ipAddress: lookupResult.serverIPAddress, port: lookupResult.serverPort } : undefined;
-
-      const requestFinishedEvent: APIRequestFinishedEvent = {
-        requestEvent,
-        httpVersion: lookupResult.httpVersion ?? 'HTTP/1.1',
-        statusCode: status,
-        statusMessage: statusText,
-        headers: toHeadersObject(responseHeaders),
-        rawHeaders: responseHeaders.flatMap(({ name, value }) => [name, value]),
-        cookies,
-        body,
-        timings: lookupResult.timings ?? { send: -1, wait: -1, receive: -1 },
-        serverIPAddress: lookupResult.serverIPAddress,
-        serverPort: lookupResult.serverPort,
-        securityDetails: lookupResult.securityDetails,
-      };
-      this.emit(APIRequestContext.Events.RequestFinished, requestFinishedEvent);
-
-      return {
-        body,
-        log,
-        response: {
-          url: finalUrl,
-          status,
-          statusText,
-          headers: responseHeaders,
-          securityDetails: lookupResult.securityDetails,
-          serverAddr,
-        },
-      };
-    }
-    return undefined;
+  override async storageState(progress: Progress, params: { indexedDB?: boolean, opfs?: boolean }): Promise<channels.APIRequestContextStorageStateResult> {
+    return this._context.storageState(progress, params);
   }
 }
 
@@ -807,9 +761,8 @@ export class GlobalAPIRequestContext extends APIRequestContext {
 
   constructor(playwright: Playwright, options: channels.PlaywrightNewRequestOptions) {
     super(playwright);
-    this.attribution.context = this;
     if (options.storageState) {
-      this._origins = options.storageState.origins?.map(origin => ({ indexedDB: [], ...origin }));
+      this._origins = options.storageState.origins?.map(origin => ({ indexedDB: [], opfs: [], ...origin }));
       this._cookieStore.addCookies(options.storageState.cookies || []);
     }
     verifyClientCertificates(options.clientCertificates);
@@ -850,10 +803,14 @@ export class GlobalAPIRequestContext extends APIRequestContext {
     return this._cookieStore.cookies(url);
   }
 
-  override async storageState(progress: Progress, indexedDB = false): Promise<channels.APIRequestContextStorageStateResult> {
+  override async storageState(progress: Progress, { indexedDB = false, opfs = false }: { indexedDB?: boolean, opfs?: boolean }): Promise<channels.APIRequestContextStorageStateResult> {
     return {
       cookies: this._cookieStore.allCookies(),
-      origins: (this._origins || []).map(origin => ({ ...origin, indexedDB: indexedDB ? origin.indexedDB : [] })),
+      origins: (this._origins || []).map(origin => ({
+        ...origin,
+        indexedDB: indexedDB ? origin.indexedDB : [],
+        opfs: opfs ? origin.opfs : undefined,
+      })),
     };
   }
 }
@@ -862,25 +819,6 @@ function toHeadersArray(rawHeaders: string[]): types.HeadersArray {
   const result: types.HeadersArray = [];
   for (let i = 0; i < rawHeaders.length; i += 2)
     result.push({ name: rawHeaders[i], value: rawHeaders[i + 1] });
-  return result;
-}
-
-function toHeadersObject(headers: types.HeadersArray): http.IncomingHttpHeaders {
-  const result: http.IncomingHttpHeaders = {};
-  for (const { name, value } of headers) {
-    const key = name.toLowerCase();
-    // set-cookie is the only multi-valued header Node exposes as an array.
-    if (key === 'set-cookie') {
-      const existing = result['set-cookie'];
-      if (existing)
-        existing.push(value);
-      else
-        result['set-cookie'] = [value];
-    } else {
-      const existing = result[key];
-      result[key] = existing ? `${existing}, ${value}` : value;
-    }
-  }
   return result;
 }
 
@@ -956,8 +894,26 @@ function isNetworkConnectionError(e: any): boolean {
   return code === 'ECONNRESET' || code === 'EPIPE' || code === 'ECONNABORTED';
 }
 
-function setBasicAuthorizationHeader(headers: { [name: string]: string }, credentials: HTTPCredentials) {
+function setBasicAuthorizationHeader(headers: { [name: string]: string }, credentials: HttpCredentials) {
   const { username, password } = credentials;
   const encoded = Buffer.from(`${username || ''}:${password || ''}`).toString('base64');
   setHeader(headers, 'authorization', `Basic ${encoded}`);
+}
+
+function lookupWithTestHook(testHookLookup: (hostname: string) => LookupAddress[]): net.LookupFunction {
+  return (hostname, options, callback) => {
+    setImmediate(() => {
+      let addresses: LookupAddress[];
+      try {
+        addresses = testHookLookup(hostname);
+      } catch (error) {
+        callback(error as NodeJS.ErrnoException, '');
+        return;
+      }
+      if (options.all)
+        callback(null, addresses);
+      else
+        callback(null, addresses[0].address, addresses[0].family);
+    });
+  };
 }

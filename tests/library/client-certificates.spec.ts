@@ -88,6 +88,13 @@ const kValidationSubTests: [BrowserContextOptions, string][] = [
       passphrase: kDummyFileName,
     }]
   }, 'pfx is specified together with cert, key or passphrase'],
+  [{
+    clientCertificates: [{
+      origin: 'test',
+      noCertificate: true,
+      certPath: kDummyFileName,
+    }]
+  }, 'noCertificate is set together with cert, key, passphrase or pfx'],
 ];
 
 test.describe('fetch', () => {
@@ -99,6 +106,21 @@ test.describe('fetch', () => {
   test('should fail with no client certificates provided', async ({ playwright, startCCServer }) => {
     const serverURL = await startCCServer();
     const request = await playwright.request.newContext({ ignoreHTTPSErrors: true });
+    const response = await request.get(serverURL);
+    expect(response.status()).toBe(401);
+    expect(await response.text()).toContain('Sorry, but you need to provide a client certificate to continue.');
+    await request.dispose();
+  });
+
+  test('should send no client certificate when noCertificate is set', async ({ playwright, startCCServer }) => {
+    const serverURL = await startCCServer();
+    const request = await playwright.request.newContext({
+      ignoreHTTPSErrors: true,
+      clientCertificates: [{
+        origin: new URL(serverURL).origin,
+        noCertificate: true,
+      }],
+    });
     const response = await request.get(serverURL);
     expect(response.status()).toBe(401);
     expect(await response.text()).toContain('Sorry, but you need to provide a client certificate to continue.');
@@ -344,7 +366,7 @@ test.describe('browser', () => {
 
   test('should not intercept TLS for origins without a client certificate', {
     annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/41106' },
-  }, async ({ browser, asset, httpsServer, browserName, platform }) => {
+  }, async ({ browser, asset, httpsServer }) => {
     // If the proxy intercepted this origin, the browser would see its self-signed cert (CN=localhost)
     // instead of the real server cert (CN=playwright-test).
     const page = await browser.newPage({
@@ -356,15 +378,44 @@ test.describe('browser', () => {
     });
     const response = await page.goto(httpsServer.EMPTY_PAGE);
     expect(response.ok()).toBe(true);
-    const subjectName = (await response.securityDetails()).subjectName;
-    if (browserName === 'webkit' && platform === 'win32') {
-      // Don't ask me why this is "true" on Windows WebKit.
-      expect(subjectName).toContain('true');
-    } else {
-      // This is "CN=playwright-test" in some ubuntu webkits, and "playwright-test" in other browsers.
-      expect(subjectName).toContain('playwright-test');
-    }
+    const securityDetails = await response.securityDetails();
+    expect(securityDetails.subjectName).toContain('playwright-test');
     await page.close();
+  });
+
+  test('should intercept TLS and send no client certificate when noCertificate is set for the visited origin', {
+    annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/42546' },
+  }, async ({ browser, startCCServer }) => {
+    const serverURL = await startCCServer();
+    const page = await browser.newPage({
+      ignoreHTTPSErrors: true,
+      clientCertificates: [{
+        origin: new URL(serverURL).origin,
+        noCertificate: true,
+      }],
+    });
+    const response = await page.goto(serverURL);
+    // noCertificate forces interception for this origin, so the browser sees the
+    // proxy's own dummy certificate (CN=localhost) instead of the real
+    // server's certificate.
+    const securityDetails = await response.securityDetails();
+    expect(securityDetails.subjectName).toBe('localhost');
+    // The app layer still receives no client certificate.
+    await expect(page.getByTestId('message')).toHaveText('Sorry, but you need to provide a client certificate to continue.');
+    await page.close();
+  });
+
+  test('should throw when noCertificate and a real certificate are both set for the same origin', async ({ browser, asset }) => {
+    await expect(browser.newContext({
+      clientCertificates: [
+        { origin: 'https://not-matching.com', noCertificate: true },
+        {
+          origin: 'https://not-matching.com',
+          certPath: asset('client-certificates/client/trusted/cert.pem'),
+          keyPath: asset('client-certificates/client/trusted/key.pem'),
+        },
+      ],
+    })).rejects.toThrow('clientCertificates for origin "https://not-matching.com" mix noCertificate with a real certificate');
   });
 
   test('should fail with no client certificates', async ({ browser, startCCServer, asset, browserName, isMac }) => {
@@ -918,6 +969,21 @@ test.describe('browser', () => {
       });
       await page.goto(serverURL);
       await expect(page.getByTestId('message')).toHaveText('Hello Alice, your certificate was issued by localhost!');
+    });
+
+    test('should intercept TLS and send no client certificate when noCertificate is set for the visited origin', async ({ launchPersistent, startCCServer }) => {
+      const serverURL = await startCCServer();
+      const { page } = await launchPersistent({
+        ignoreHTTPSErrors: true,
+        clientCertificates: [{
+          origin: new URL(serverURL).origin,
+          noCertificate: true,
+        }],
+      });
+      const response = await page.goto(serverURL);
+      const securityDetails = await response.securityDetails();
+      expect(securityDetails.subjectName).toBe('localhost');
+      await expect(page.getByTestId('message')).toHaveText('Sorry, but you need to provide a client certificate to continue.');
     });
   });
 });

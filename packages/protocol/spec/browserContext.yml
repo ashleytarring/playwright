@@ -84,6 +84,7 @@ BrowserContext:
       group: configuration
       parameters:
         name: string
+        noGlobal: boolean?
       returns:
         disposable: Disposable
 
@@ -135,11 +136,8 @@ BrowserContext:
       group: configuration
       parameters:
         httpCredentials:
-          type: object?
-          properties:
-            username: string
-            password: string
-            origin: string?
+          type: array?
+          items: HttpCredentials
 
     setNetworkInterceptionPatterns:
       title: Route requests
@@ -154,26 +152,6 @@ BrowserContext:
               regexSource: string?
               regexFlags: string?
               urlPattern: URLPattern?
-
-    routeAPIRequestsFromHar:
-      internal: true
-      parameters:
-        harId: string
-        urlGlob: string?
-        urlRegexSource: string?
-        urlRegexFlags: string?
-        notFound:
-          type: enum
-          literals:
-          - abort
-          - fallback
-      returns:
-        registrationId: string
-
-    unrouteAPIRequestsFromHar:
-      internal: true
-      parameters:
-        registrationId: string
 
     setWebSocketInterceptionPatterns:
       title: Route WebSockets
@@ -191,6 +169,8 @@ BrowserContext:
 
     setOffline:
       title: Set offline mode
+      renderParams:
+      - offline
       parameters:
         offline: boolean
 
@@ -199,6 +179,7 @@ BrowserContext:
       group: configuration
       parameters:
         indexedDB: boolean?
+        opfs: boolean?
         credentials: boolean?
       returns:
         cookies:
@@ -230,10 +211,9 @@ BrowserContext:
 
     pause:
       title: Pause
-      parameters:
-        outputFile: string?
 
-    enableRecorder:
+    # Shows the recorder window. Throws while a programmatic recording is in progress.
+    showRecorder:
       internal: true
       parameters:
         language: string?
@@ -242,11 +222,6 @@ BrowserContext:
           literals:
           - inspecting
           - recording
-        recorderMode:
-          type: enum?
-          literals:
-          - default
-          - api
         pauseOnNextStatement: boolean?
         testIdAttributeName: string?
         launchOptions: json?
@@ -257,7 +232,12 @@ BrowserContext:
         handleSIGINT: boolean?
         omitCallTracking: boolean?
 
-    disableRecorder:
+    startRecording:
+      internal: true
+      parameters:
+        language: string?
+
+    stopRecording:
       internal: true
 
     exposeConsoleApi:
@@ -297,6 +277,7 @@ BrowserContext:
           literals:
           - console
           - dialog
+          - dialogClosed
           - request
           - response
           - requestFinished
@@ -390,6 +371,10 @@ BrowserContext:
     close:
 
     dialog:
+      parameters:
+        dialog: Dialog
+
+    dialogClosed:
       parameters:
         dialog: Dialog
 

@@ -18,6 +18,7 @@ import fs from 'fs';
 import dns from 'dns';
 
 import { ChildProcess, spawn } from 'child_process';
+import { chromium } from 'playwright';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { test as baseTest, expect, mcpServerPath, formatLog } from './fixtures';
@@ -135,6 +136,7 @@ test('http transport browser lifecycle (isolated)', async ({ serverEndpoint, ser
     'create http session': 2,
     'delete http session': 2,
     'create browser \(isolated\)': 2,
+    'connect to shared browser': 2,
     'create context': 2,
     'close browser': 2,
   });
@@ -151,17 +153,19 @@ test('http transport browser sigint', async ({ serverEndpoint, server }) => {
     arguments: { url: server.HELLO_WORLD },
   });
 
-  await fetch(new URL('/killkillkill', url).href, { method: 'POST', headers: { 'x-pw-mcp-kill': '1' } }).catch(() => {});
+  await fetch(new URL('/killkillkill', url).href).catch(() => {});
 
   await expect.poll(() => formatLog(stderr())).toEqual({
     'create browser (isolated)': 1,
+    'connect to shared browser': 1,
     'create context': 1,
     'create http session': 1,
     'gracefully closing 1': 1,
+    'close browser': 1,
   });
 });
 
-test('http transport browser lifecycle (isolated, multiclient)', async ({ serverEndpoint, server }) => {
+test('http transport browser lifecycle (isolated, multiclient)', { annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/41539' } }, async ({ serverEndpoint, server }) => {
   const { url, stderr } = await serverEndpoint({ args: ['--isolated'] });
 
   const transport1 = new StreamableHTTPClientTransport(new URL('/mcp', url));
@@ -200,6 +204,8 @@ test('http transport browser lifecycle (isolated, multiclient)', async ({ server
     'delete http session': 3,
     'create context': 3,
     'create browser (isolated)': 1,
+    'connect to shared browser': 3,
+    'close context': 2,
     'close browser': 1,
   });
 });
@@ -229,6 +235,107 @@ test('http transport browser lifecycle (isolated, concurrent clients)', { annota
     'delete http session': 3,
     'create context': 3,
     'create browser (isolated)': 1,
+    'connect to shared browser': 3,
+    'close context': 2,
+    'close browser': 1,
+  });
+});
+
+test('http transport isolated multiclient relaunches a crashed shared browser', async ({ serverEndpoint, server }, testInfo) => {
+  // The CDP port lets the test kill the browser from the outside.
+  const port = 9400 + testInfo.workerIndex;
+  const configFile = testInfo.outputPath('config.json');
+  await fs.promises.writeFile(configFile, JSON.stringify({
+    browser: { launchOptions: { args: [`--remote-debugging-port=${port}`] } },
+  }));
+  const { url, stderr } = await serverEndpoint({
+    args: ['--isolated', `--config=${configFile}`],
+    env: { DEBUG: 'pw:mcp:test,pw:mcp:backend' },
+  });
+
+  const transport1 = new StreamableHTTPClientTransport(new URL('/mcp', url));
+  const client1 = new Client({ name: 'test', version: '1.0.0' });
+  await client1.connect(transport1);
+  await client1.callTool({
+    name: 'browser_navigate',
+    arguments: { url: server.HELLO_WORLD },
+  });
+
+  const transport2 = new StreamableHTTPClientTransport(new URL('/mcp', url));
+  const client2 = new Client({ name: 'test', version: '1.0.0' });
+  await client2.connect(transport2);
+  await client2.callTool({
+    name: 'browser_navigate',
+    arguments: { url: server.HELLO_WORLD },
+  });
+
+  // Kill the shared browser, as if it crashed, and wait for both backends
+  // to observe the disconnect.
+  const cdpBrowser = await chromium.connectOverCDP(`http://localhost:${port}`);
+  const session = await cdpBrowser.newBrowserCDPSession();
+  await session.send('Browser.close').catch(() => {});
+  await expect.poll(() => stderr().match(/browser disconnected/g)?.length).toBe(2);
+
+  // Each client transparently migrates to a fresh shared browser on its
+  // next tool call.
+  for (const client of [client1, client2]) {
+    expect(await client.callTool({
+      name: 'browser_navigate',
+      arguments: { url: server.HELLO_WORLD },
+    })).toHaveResponse({
+      snapshot: expect.stringContaining(`Hello, world!`),
+    });
+  }
+
+  await transport1.terminateSession();
+  await client1.close();
+  await transport2.terminateSession();
+  await client2.close();
+
+  await expect.poll(() => formatLog(stderr())).toEqual(({
+    'create http session': 2,
+    'delete http session': 2,
+    'create browser (isolated)': 2,
+    'connect to shared browser': 4,
+    'create context': 4,
+    'close browser': 2,
+    'close context': 2,
+  }));
+});
+
+test('http transport isolated closes the browser despite an earlier failed backend creation', async ({ serverEndpoint, server }, testInfo) => {
+  // A failed backend creation must not leak the client count, otherwise the
+  // browser is never closed once the last client disconnects.
+  const storageStatePath = testInfo.outputPath('storage-state.json');
+  const { url, stderr } = await serverEndpoint({ args: ['--isolated', `--storage-state=${storageStatePath}`] });
+
+  const transport = new StreamableHTTPClientTransport(new URL('/mcp', url));
+  const client = new Client({ name: 'test', version: '1.0.0' });
+  await client.connect(transport);
+
+  // The browser launches, but context creation fails on the missing file.
+  expect((await client.callTool({
+    name: 'browser_navigate',
+    arguments: { url: server.HELLO_WORLD },
+  })).isError).toBe(true);
+
+  await fs.promises.writeFile(storageStatePath, JSON.stringify({ origins: [] }));
+  expect(await client.callTool({
+    name: 'browser_navigate',
+    arguments: { url: server.HELLO_WORLD },
+  })).toHaveResponse({
+    snapshot: expect.stringContaining(`Hello, world!`),
+  });
+
+  await transport.terminateSession();
+  await client.close();
+
+  await expect.poll(() => formatLog(stderr())).toEqual({
+    'create http session': 1,
+    'delete http session': 1,
+    'create browser (isolated)': 1,
+    'connect to shared browser': 2,
+    'create context': 1,
     'close browser': 1,
   });
 });
@@ -330,10 +437,154 @@ test('http transport shared context', async ({ serverEndpoint, server }) => {
 
   await expect.poll(() => formatLog(stderr())).toEqual({
     'create browser (persistent)': 1,
+    'connect to shared browser': 2,
+    'disconnect from shared browser': 1,
     'create http session': 2,
     'delete http session': 2,
     'create context': 2,
     'close browser': 1,
+  });
+});
+
+test('http transport shared context refuses browser_close', { annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/42363' } }, async ({ serverEndpoint, server }) => {
+  const { url, stderr } = await serverEndpoint({ args: ['--shared-browser-context'] });
+
+  const transport1 = new StreamableHTTPClientTransport(new URL('/mcp', url));
+  const client1 = new Client({ name: 'test1', version: '1.0.0' });
+  await client1.connect(transport1);
+  await client1.callTool({
+    name: 'browser_navigate',
+    arguments: { url: server.HELLO_WORLD },
+  });
+
+  const transport2 = new StreamableHTTPClientTransport(new URL('/mcp', url));
+  const client2 = new Client({ name: 'test2', version: '1.0.0' });
+  await client2.connect(transport2);
+  await client2.callTool({
+    name: 'browser_navigate',
+    arguments: { url: server.HELLO_WORLD },
+  });
+
+  // The context is shared with the second client, so closing it is refused.
+  expect(await client1.callTool({
+    name: 'browser_close',
+    arguments: {},
+  })).toHaveResponse({
+    error: 'Error: The browser context is shared between clients and cannot be closed.',
+    isError: true,
+  });
+
+  // The first client keeps working.
+  expect(await client1.callTool({
+    name: 'browser_tabs',
+    arguments: { action: 'new', url: server.HELLO_WORLD },
+  })).toHaveResponse({
+    snapshot: expect.stringContaining(`Hello, world!`),
+  });
+
+  // The second client is unaffected.
+  expect(await client2.callTool({
+    name: 'browser_snapshot',
+    arguments: {},
+  })).toHaveResponse({
+    inlineSnapshot: expect.stringContaining(`Hello, world!`),
+  });
+
+  await transport1.terminateSession();
+  await client1.close();
+  await transport2.terminateSession();
+  await client2.close();
+
+  await expect.poll(() => formatLog(stderr())).toEqual({
+    'create browser (persistent)': 1,
+    'connect to shared browser': 2,
+    'disconnect from shared browser': 1,
+    'create http session': 2,
+    'delete http session': 2,
+    'create context': 2,
+    'close browser': 1,
+  });
+});
+
+async function connectClient(url: URL, name: string) {
+  const transport = new StreamableHTTPClientTransport(new URL('/mcp', url));
+  const client = new Client({ name, version: '1.0.0' });
+  await client.connect(transport);
+  const close = async () => {
+    await transport.terminateSession();
+    await client.close();
+  };
+  return { client, close };
+}
+
+async function keepBusy(client: Client, ms: number) {
+  const deadline = Date.now() + ms;
+  while (Date.now() < deadline) {
+    await client.callTool({ name: 'browser_snapshot', arguments: {} });
+    await new Promise(f => setTimeout(f, 100));
+  }
+}
+
+test('http transport shared context: one idle timer across clients', async ({ serverEndpoint, server }) => {
+  const { url, stderr } = await serverEndpoint({ args: ['--shared-browser-context', '--idle-timeout=1500'] });
+  const client1 = await connectClient(url, 'test1');
+  await client1.client.callTool({
+    name: 'browser_navigate',
+    arguments: { url: server.HELLO_WORLD },
+  });
+
+  const client2 = await connectClient(url, 'test2');
+  await keepBusy(client2.client, 3000);
+  expect(formatLog(stderr())).toEqual({
+    'create browser (persistent)': 1,
+    'connect to shared browser': 2,
+    'create http session': 2,
+    'create context': 2,
+  });
+  const response = await client1.client.callTool({
+    name: 'browser_snapshot',
+    arguments: {},
+  });
+  expect(response).toHaveResponse({
+    inlineSnapshot: expect.stringContaining(`Hello, world!`),
+  });
+
+  await expect.poll(() => formatLog(stderr())).toEqual({
+    'create browser (persistent)': 1,
+    'connect to shared browser': 2,
+    'disconnect from shared browser': 1,
+    'create http session': 2,
+    'create context': 2,
+    'close browser': 1,
+  });
+
+  for (const { client } of [client1, client2]) {
+    expect(await client.callTool({
+      name: 'browser_navigate',
+      arguments: { url: server.HELLO_WORLD },
+    })).toHaveResponse({
+      snapshot: expect.stringContaining(`Hello, world!`),
+    });
+  }
+  expect(formatLog(stderr())).toEqual({
+    'create browser (persistent)': 2,
+    'connect to shared browser': 4,
+    'disconnect from shared browser': 1,
+    'create http session': 2,
+    'create context': 4,
+    'close browser': 1,
+  });
+
+  await client1.close();
+  await client2.close();
+  await expect.poll(() => formatLog(stderr())).toEqual({
+    'create browser (persistent)': 2,
+    'connect to shared browser': 4,
+    'disconnect from shared browser': 2,
+    'create http session': 2,
+    'delete http session': 2,
+    'create context': 4,
+    'close browser': 2,
   });
 });
 
@@ -387,6 +638,44 @@ test('should close session when heartbeat ping is not answered', async ({ server
   }).catch(() => {});
 
   await expect.poll(() => formatLog(stderr())['delete http session']).toBe(1);
+});
+
+test('should not reap session of a client without the event stream', async ({ serverEndpoint, server }) => {
+  const { url, stderr } = await serverEndpoint({ env: { PLAYWRIGHT_MCP_PING_TIMEOUT_MS: '500' } });
+
+  // A POST-only client that never opens the GET event stream (optional per spec),
+  // so server-initiated pings cannot be delivered to it.
+  // https://github.com/microsoft/playwright-mcp/issues/1710
+  const endpoint = new URL('/mcp', url);
+  let lastId = 0;
+  const post = async (body: object, sessionId?: string) => {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'accept': 'application/json, text/event-stream',
+        ...(sessionId ? { 'mcp-session-id': sessionId } : {}),
+      },
+      body: JSON.stringify(body),
+    });
+    return { status: response.status, sessionId: response.headers.get('mcp-session-id'), text: await response.text() };
+  };
+
+  const init = await post({ jsonrpc: '2.0', id: ++lastId, method: 'initialize', params: { protocolVersion: '2025-03-26', capabilities: {}, clientInfo: { name: 'post-only', version: '1.0.0' } } });
+  expect(init.status).toBe(200);
+  const sessionId = init.sessionId!;
+  await post({ jsonrpc: '2.0', method: 'notifications/initialized' }, sessionId);
+
+  const navigate = await post({ jsonrpc: '2.0', id: ++lastId, method: 'tools/call', params: { name: 'browser_navigate', arguments: { url: server.HELLO_WORLD } } }, sessionId);
+  expect(navigate.status).toBe(200);
+
+  // Wait long past the ping timeout, the heartbeat must not kick in.
+  await new Promise(f => setTimeout(f, 1000));
+
+  const snapshot = await post({ jsonrpc: '2.0', id: ++lastId, method: 'tools/call', params: { name: 'browser_snapshot', arguments: {} } }, sessionId);
+  expect(snapshot.status).toBe(200);
+  expect(snapshot.text).toContain('Hello, world!');
+  expect(formatLog(stderr())['delete http session']).toBeUndefined();
 });
 
 test('should not run heartbeat when timeout is non-positive', async ({ serverEndpoint, server }) => {

@@ -87,14 +87,15 @@ export interface Page {
    * [`pageFunction`](https://playwright.dev/docs/api/class-page#page-evaluate-option-expression) invocation.
    *
    * If the function passed to the
-   * [page.evaluate(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate) returns a [Promise],
-   * then [page.evaluate(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate) would wait for
-   * the promise to resolve and return its value.
+   * [page.evaluate(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-page#page-evaluate) returns a
+   * [Promise], then
+   * [page.evaluate(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-page#page-evaluate) would wait
+   * for the promise to resolve and return its value.
    *
    * If the function passed to the
-   * [page.evaluate(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate) returns a
+   * [page.evaluate(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-page#page-evaluate) returns a
    * non-[Serializable] value, then
-   * [page.evaluate(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate) resolves to
+   * [page.evaluate(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-page#page-evaluate) resolves to
    * `undefined`. Playwright also supports transferring some additional values that are not serializable by `JSON`:
    * `-0`, `NaN`, `Infinity`, `-Infinity`.
    *
@@ -118,7 +119,7 @@ export interface Page {
    * ```
    *
    * [ElementHandle](https://playwright.dev/docs/api/class-elementhandle) instances can be passed as an argument to the
-   * [page.evaluate(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate):
+   * [page.evaluate(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-page#page-evaluate):
    *
    * ```js
    * const bodyHandle = await page.evaluateHandle('document.body');
@@ -131,21 +132,23 @@ export interface Page {
    * @param pageFunction Function to be evaluated in the page context.
    * @param arg Optional argument to pass to
    * [`pageFunction`](https://playwright.dev/docs/api/class-page#page-evaluate-option-expression).
+   * @param options
    */
-  evaluate<R, Arg>(pageFunction: PageFunction<Arg, R>, arg: Arg): Promise<R>;
+  evaluate<R, Arg>(pageFunction: PageFunction<Arg, R>, arg: Arg, options?: { exposeFunctions?: boolean, serialize?: ('Map'|'Set')[], world?: 'main'|'utility' }): Promise<R>;
   /**
    * Returns the value of the
    * [`pageFunction`](https://playwright.dev/docs/api/class-page#page-evaluate-option-expression) invocation.
    *
    * If the function passed to the
-   * [page.evaluate(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate) returns a [Promise],
-   * then [page.evaluate(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate) would wait for
-   * the promise to resolve and return its value.
+   * [page.evaluate(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-page#page-evaluate) returns a
+   * [Promise], then
+   * [page.evaluate(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-page#page-evaluate) would wait
+   * for the promise to resolve and return its value.
    *
    * If the function passed to the
-   * [page.evaluate(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate) returns a
+   * [page.evaluate(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-page#page-evaluate) returns a
    * non-[Serializable] value, then
-   * [page.evaluate(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate) resolves to
+   * [page.evaluate(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-page#page-evaluate) resolves to
    * `undefined`. Playwright also supports transferring some additional values that are not serializable by `JSON`:
    * `-0`, `NaN`, `Infinity`, `-Infinity`.
    *
@@ -169,7 +172,7 @@ export interface Page {
    * ```
    *
    * [ElementHandle](https://playwright.dev/docs/api/class-elementhandle) instances can be passed as an argument to the
-   * [page.evaluate(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate):
+   * [page.evaluate(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-page#page-evaluate):
    *
    * ```js
    * const bodyHandle = await page.evaluateHandle('document.body');
@@ -182,8 +185,9 @@ export interface Page {
    * @param pageFunction Function to be evaluated in the page context.
    * @param arg Optional argument to pass to
    * [`pageFunction`](https://playwright.dev/docs/api/class-page#page-evaluate-option-expression).
+   * @param options
    */
-  evaluate<R>(pageFunction: PageFunction<void, R>, arg?: any): Promise<R>;
+  evaluate<R>(pageFunction: PageFunction<void, R>, arg?: any, options?: { exposeFunctions?: boolean, serialize?: ('Map'|'Set')[], world?: 'main'|'utility' }): Promise<R>;
 
   /**
    * Returns the value of the
@@ -191,16 +195,17 @@ export interface Page {
    * [JSHandle](https://playwright.dev/docs/api/class-jshandle).
    *
    * The only difference between
-   * [page.evaluate(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate) and
-   * [page.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate-handle) is that
-   * [page.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate-handle) returns
-   * [JSHandle](https://playwright.dev/docs/api/class-jshandle).
+   * [page.evaluate(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-page#page-evaluate) and
+   * [page.evaluateHandle(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-page#page-evaluate-handle)
+   * is that
+   * [page.evaluateHandle(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-page#page-evaluate-handle)
+   * returns [JSHandle](https://playwright.dev/docs/api/class-jshandle).
    *
    * If the function passed to the
-   * [page.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate-handle) returns
-   * a [Promise], then
-   * [page.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate-handle) would
-   * wait for the promise to resolve and return its value.
+   * [page.evaluateHandle(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-page#page-evaluate-handle)
+   * returns a [Promise], then
+   * [page.evaluateHandle(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-page#page-evaluate-handle)
+   * would wait for the promise to resolve and return its value.
    *
    * **Usage**
    *
@@ -216,7 +221,7 @@ export interface Page {
    * ```
    *
    * [JSHandle](https://playwright.dev/docs/api/class-jshandle) instances can be passed as an argument to the
-   * [page.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate-handle):
+   * [page.evaluateHandle(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-page#page-evaluate-handle):
    *
    * ```js
    * const aHandle = await page.evaluateHandle(() => document.body);
@@ -228,24 +233,26 @@ export interface Page {
    * @param pageFunction Function to be evaluated in the page context.
    * @param arg Optional argument to pass to
    * [`pageFunction`](https://playwright.dev/docs/api/class-page#page-evaluate-handle-option-expression).
+   * @param options
    */
-  evaluateHandle<R, Arg>(pageFunction: PageFunction<Arg, R>, arg: Arg): Promise<SmartHandle<R>>;
+  evaluateHandle<R, Arg>(pageFunction: PageFunction<Arg, R>, arg: Arg, options?: { exposeFunctions?: boolean, serialize?: ('Map'|'Set')[] }): Promise<SmartHandle<R>>;
   /**
    * Returns the value of the
    * [`pageFunction`](https://playwright.dev/docs/api/class-page#page-evaluate-handle-option-expression) invocation as a
    * [JSHandle](https://playwright.dev/docs/api/class-jshandle).
    *
    * The only difference between
-   * [page.evaluate(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate) and
-   * [page.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate-handle) is that
-   * [page.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate-handle) returns
-   * [JSHandle](https://playwright.dev/docs/api/class-jshandle).
+   * [page.evaluate(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-page#page-evaluate) and
+   * [page.evaluateHandle(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-page#page-evaluate-handle)
+   * is that
+   * [page.evaluateHandle(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-page#page-evaluate-handle)
+   * returns [JSHandle](https://playwright.dev/docs/api/class-jshandle).
    *
    * If the function passed to the
-   * [page.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate-handle) returns
-   * a [Promise], then
-   * [page.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate-handle) would
-   * wait for the promise to resolve and return its value.
+   * [page.evaluateHandle(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-page#page-evaluate-handle)
+   * returns a [Promise], then
+   * [page.evaluateHandle(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-page#page-evaluate-handle)
+   * would wait for the promise to resolve and return its value.
    *
    * **Usage**
    *
@@ -261,7 +268,7 @@ export interface Page {
    * ```
    *
    * [JSHandle](https://playwright.dev/docs/api/class-jshandle) instances can be passed as an argument to the
-   * [page.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate-handle):
+   * [page.evaluateHandle(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-page#page-evaluate-handle):
    *
    * ```js
    * const aHandle = await page.evaluateHandle(() => document.body);
@@ -273,8 +280,9 @@ export interface Page {
    * @param pageFunction Function to be evaluated in the page context.
    * @param arg Optional argument to pass to
    * [`pageFunction`](https://playwright.dev/docs/api/class-page#page-evaluate-handle-option-expression).
+   * @param options
    */
-  evaluateHandle<R>(pageFunction: PageFunction<void, R>, arg?: any): Promise<SmartHandle<R>>;
+  evaluateHandle<R>(pageFunction: PageFunction<void, R>, arg?: any, options?: { exposeFunctions?: boolean, serialize?: ('Map'|'Set')[] }): Promise<SmartHandle<R>>;
 
   /**
    * Adds a script which would be evaluated in one of the following scenarios:
@@ -306,16 +314,17 @@ export interface Page {
    * ```
    *
    * **NOTE** The order of evaluation of multiple scripts installed via
-   * [browserContext.addInitScript(script[, arg])](https://playwright.dev/docs/api/class-browsercontext#browser-context-add-init-script)
-   * and [page.addInitScript(script[, arg])](https://playwright.dev/docs/api/class-page#page-add-init-script) is not
-   * defined.
+   * [browserContext.addInitScript(script[, arg, options])](https://playwright.dev/docs/api/class-browsercontext#browser-context-add-init-script)
+   * and [page.addInitScript(script[, arg, options])](https://playwright.dev/docs/api/class-page#page-add-init-script)
+   * is not defined.
    *
    * @param script Script to be evaluated in the page.
    * @param arg Optional argument to pass to
    * [`script`](https://playwright.dev/docs/api/class-page#page-add-init-script-option-script) (only supported when
    * passing a function).
+   * @param options
    */
-  addInitScript<Arg>(script: PageFunction<Arg, any> | { path?: string, content?: string }, arg?: Arg): Promise<Disposable>;
+  addInitScript<Arg>(script: PageFunction<Arg, any> | { path?: string, content?: string }, arg?: Arg, options?: { exposeFunctions?: boolean }): Promise<Disposable>;
 
   /**
    * **NOTE** Use locator-based [page.locator(selector[, options])](https://playwright.dev/docs/api/class-page#page-locator)
@@ -391,7 +400,7 @@ export interface Page {
    * [`pageFunction`](https://playwright.dev/docs/api/class-page#page-eval-on-selector-option-expression).
    * @param options
    */
-  $eval<K extends keyof HTMLElementTagNameMap, R, Arg>(selector: K, pageFunction: PageFunctionOn<HTMLElementTagNameMap[K], Arg, R>, arg: Arg): Promise<R>;
+  $eval<K extends keyof HTMLElementTagNameMap, R, Arg>(selector: K, pageFunction: PageFunctionOn<HTMLElementTagNameMap[K], Arg, R>, arg: Arg, options?: { world?: 'main'|'utility' }): Promise<R>;
   /**
    * **NOTE** This method does not wait for the element to pass actionability checks and therefore can lead to the flaky tests.
    * Use
@@ -424,7 +433,7 @@ export interface Page {
    * [`pageFunction`](https://playwright.dev/docs/api/class-page#page-eval-on-selector-option-expression).
    * @param options
    */
-  $eval<R, Arg, E extends SVGElement | HTMLElement = SVGElement | HTMLElement>(selector: string, pageFunction: PageFunctionOn<E, Arg, R>, arg: Arg): Promise<R>;
+  $eval<R, Arg, E extends SVGElement | HTMLElement = SVGElement | HTMLElement>(selector: string, pageFunction: PageFunctionOn<E, Arg, R>, arg: Arg, options?: { world?: 'main'|'utility' }): Promise<R>;
   /**
    * **NOTE** This method does not wait for the element to pass actionability checks and therefore can lead to the flaky tests.
    * Use
@@ -457,7 +466,7 @@ export interface Page {
    * [`pageFunction`](https://playwright.dev/docs/api/class-page#page-eval-on-selector-option-expression).
    * @param options
    */
-  $eval<K extends keyof HTMLElementTagNameMap, R>(selector: K, pageFunction: PageFunctionOn<HTMLElementTagNameMap[K], void, R>, arg?: any): Promise<R>;
+  $eval<K extends keyof HTMLElementTagNameMap, R>(selector: K, pageFunction: PageFunctionOn<HTMLElementTagNameMap[K], void, R>, arg?: any, options?: { world?: 'main'|'utility' }): Promise<R>;
   /**
    * **NOTE** This method does not wait for the element to pass actionability checks and therefore can lead to the flaky tests.
    * Use
@@ -490,11 +499,11 @@ export interface Page {
    * [`pageFunction`](https://playwright.dev/docs/api/class-page#page-eval-on-selector-option-expression).
    * @param options
    */
-  $eval<R, E extends SVGElement | HTMLElement = SVGElement | HTMLElement>(selector: string, pageFunction: PageFunctionOn<E, void, R>, arg?: any): Promise<R>;
+  $eval<R, E extends SVGElement | HTMLElement = SVGElement | HTMLElement>(selector: string, pageFunction: PageFunctionOn<E, void, R>, arg?: any, options?: { world?: 'main'|'utility' }): Promise<R>;
 
   /**
    * **NOTE** In most cases,
-   * [locator.evaluateAll(pageFunction[, arg])](https://playwright.dev/docs/api/class-locator#locator-evaluate-all),
+   * [locator.evaluateAll(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-locator#locator-evaluate-all),
    * other [Locator](https://playwright.dev/docs/api/class-locator) helper methods and web-first assertions do a better
    * job.
    *
@@ -507,7 +516,7 @@ export interface Page {
    *
    * If [`pageFunction`](https://playwright.dev/docs/api/class-page#page-eval-on-selector-all-option-expression) returns
    * a [Promise], then
-   * [page.$$eval(selector, pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-eval-on-selector-all)
+   * [page.$$eval(selector, pageFunction[, arg, options])](https://playwright.dev/docs/api/class-page#page-eval-on-selector-all)
    * would wait for the promise to resolve and return its value.
    *
    * **Usage**
@@ -520,11 +529,12 @@ export interface Page {
    * @param pageFunction Function to be evaluated in the page context.
    * @param arg Optional argument to pass to
    * [`pageFunction`](https://playwright.dev/docs/api/class-page#page-eval-on-selector-all-option-expression).
+   * @param options
    */
-  $$eval<K extends keyof HTMLElementTagNameMap, R, Arg>(selector: K, pageFunction: PageFunctionOn<HTMLElementTagNameMap[K][], Arg, R>, arg: Arg): Promise<R>;
+  $$eval<K extends keyof HTMLElementTagNameMap, R, Arg>(selector: K, pageFunction: PageFunctionOn<HTMLElementTagNameMap[K][], Arg, R>, arg: Arg, options?: { world?: 'main'|'utility' }): Promise<R>;
   /**
    * **NOTE** In most cases,
-   * [locator.evaluateAll(pageFunction[, arg])](https://playwright.dev/docs/api/class-locator#locator-evaluate-all),
+   * [locator.evaluateAll(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-locator#locator-evaluate-all),
    * other [Locator](https://playwright.dev/docs/api/class-locator) helper methods and web-first assertions do a better
    * job.
    *
@@ -537,7 +547,7 @@ export interface Page {
    *
    * If [`pageFunction`](https://playwright.dev/docs/api/class-page#page-eval-on-selector-all-option-expression) returns
    * a [Promise], then
-   * [page.$$eval(selector, pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-eval-on-selector-all)
+   * [page.$$eval(selector, pageFunction[, arg, options])](https://playwright.dev/docs/api/class-page#page-eval-on-selector-all)
    * would wait for the promise to resolve and return its value.
    *
    * **Usage**
@@ -550,11 +560,12 @@ export interface Page {
    * @param pageFunction Function to be evaluated in the page context.
    * @param arg Optional argument to pass to
    * [`pageFunction`](https://playwright.dev/docs/api/class-page#page-eval-on-selector-all-option-expression).
+   * @param options
    */
-  $$eval<R, Arg, E extends SVGElement | HTMLElement = SVGElement | HTMLElement>(selector: string, pageFunction: PageFunctionOn<E[], Arg, R>, arg: Arg): Promise<R>;
+  $$eval<R, Arg, E extends SVGElement | HTMLElement = SVGElement | HTMLElement>(selector: string, pageFunction: PageFunctionOn<E[], Arg, R>, arg: Arg, options?: { world?: 'main'|'utility' }): Promise<R>;
   /**
    * **NOTE** In most cases,
-   * [locator.evaluateAll(pageFunction[, arg])](https://playwright.dev/docs/api/class-locator#locator-evaluate-all),
+   * [locator.evaluateAll(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-locator#locator-evaluate-all),
    * other [Locator](https://playwright.dev/docs/api/class-locator) helper methods and web-first assertions do a better
    * job.
    *
@@ -567,7 +578,7 @@ export interface Page {
    *
    * If [`pageFunction`](https://playwright.dev/docs/api/class-page#page-eval-on-selector-all-option-expression) returns
    * a [Promise], then
-   * [page.$$eval(selector, pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-eval-on-selector-all)
+   * [page.$$eval(selector, pageFunction[, arg, options])](https://playwright.dev/docs/api/class-page#page-eval-on-selector-all)
    * would wait for the promise to resolve and return its value.
    *
    * **Usage**
@@ -580,11 +591,12 @@ export interface Page {
    * @param pageFunction Function to be evaluated in the page context.
    * @param arg Optional argument to pass to
    * [`pageFunction`](https://playwright.dev/docs/api/class-page#page-eval-on-selector-all-option-expression).
+   * @param options
    */
-  $$eval<K extends keyof HTMLElementTagNameMap, R>(selector: K, pageFunction: PageFunctionOn<HTMLElementTagNameMap[K][], void, R>, arg?: any): Promise<R>;
+  $$eval<K extends keyof HTMLElementTagNameMap, R>(selector: K, pageFunction: PageFunctionOn<HTMLElementTagNameMap[K][], void, R>, arg?: any, options?: { world?: 'main'|'utility' }): Promise<R>;
   /**
    * **NOTE** In most cases,
-   * [locator.evaluateAll(pageFunction[, arg])](https://playwright.dev/docs/api/class-locator#locator-evaluate-all),
+   * [locator.evaluateAll(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-locator#locator-evaluate-all),
    * other [Locator](https://playwright.dev/docs/api/class-locator) helper methods and web-first assertions do a better
    * job.
    *
@@ -597,7 +609,7 @@ export interface Page {
    *
    * If [`pageFunction`](https://playwright.dev/docs/api/class-page#page-eval-on-selector-all-option-expression) returns
    * a [Promise], then
-   * [page.$$eval(selector, pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-eval-on-selector-all)
+   * [page.$$eval(selector, pageFunction[, arg, options])](https://playwright.dev/docs/api/class-page#page-eval-on-selector-all)
    * would wait for the promise to resolve and return its value.
    *
    * **Usage**
@@ -610,8 +622,9 @@ export interface Page {
    * @param pageFunction Function to be evaluated in the page context.
    * @param arg Optional argument to pass to
    * [`pageFunction`](https://playwright.dev/docs/api/class-page#page-eval-on-selector-all-option-expression).
+   * @param options
    */
-  $$eval<R, E extends SVGElement | HTMLElement = SVGElement | HTMLElement>(selector: string, pageFunction: PageFunctionOn<E[], void, R>, arg?: any): Promise<R>;
+  $$eval<R, E extends SVGElement | HTMLElement = SVGElement | HTMLElement>(selector: string, pageFunction: PageFunctionOn<E[], void, R>, arg?: any, options?: { world?: 'main'|'utility' }): Promise<R>;
 
   /**
    * Returns when the
@@ -1038,6 +1051,14 @@ export interface Page {
   on(event: 'dialog', listener: (dialog: Dialog) => any): this;
 
   /**
+   * Emitted when a JavaScript dialog has been closed, either by
+   * [dialog.accept([promptText])](https://playwright.dev/docs/api/class-dialog#dialog-accept), by
+   * [dialog.dismiss()](https://playwright.dev/docs/api/class-dialog#dialog-dismiss), or manually by the user in the
+   * headed browser.
+   */
+  on(event: 'dialogclosed', listener: (dialog: Dialog) => any): this;
+
+  /**
    * Emitted when the JavaScript
    * [`DOMContentLoaded`](https://developer.mozilla.org/en-US/docs/Web/Events/DOMContentLoaded) event is dispatched.
    */
@@ -1201,6 +1222,11 @@ export interface Page {
   /**
    * Adds an event listener that will be automatically removed after it is triggered once. See `addListener` for more information about this event.
    */
+  once(event: 'dialogclosed', listener: (dialog: Dialog) => any): this;
+
+  /**
+   * Adds an event listener that will be automatically removed after it is triggered once. See `addListener` for more information about this event.
+   */
   once(event: 'domcontentloaded', listener: (page: Page) => any): this;
 
   /**
@@ -1338,6 +1364,14 @@ export interface Page {
    *
    */
   addListener(event: 'dialog', listener: (dialog: Dialog) => any): this;
+
+  /**
+   * Emitted when a JavaScript dialog has been closed, either by
+   * [dialog.accept([promptText])](https://playwright.dev/docs/api/class-dialog#dialog-accept), by
+   * [dialog.dismiss()](https://playwright.dev/docs/api/class-dialog#dialog-dismiss), or manually by the user in the
+   * headed browser.
+   */
+  addListener(event: 'dialogclosed', listener: (dialog: Dialog) => any): this;
 
   /**
    * Emitted when the JavaScript
@@ -1503,6 +1537,11 @@ export interface Page {
   /**
    * Removes an event listener added by `on` or `addListener`.
    */
+  removeListener(event: 'dialogclosed', listener: (dialog: Dialog) => any): this;
+
+  /**
+   * Removes an event listener added by `on` or `addListener`.
+   */
   removeListener(event: 'domcontentloaded', listener: (page: Page) => any): this;
 
   /**
@@ -1594,6 +1633,11 @@ export interface Page {
    * Removes an event listener added by `on` or `addListener`.
    */
   off(event: 'dialog', listener: (dialog: Dialog) => any): this;
+
+  /**
+   * Removes an event listener added by `on` or `addListener`.
+   */
+  off(event: 'dialogclosed', listener: (dialog: Dialog) => any): this;
 
   /**
    * Removes an event listener added by `on` or `addListener`.
@@ -1735,6 +1779,14 @@ export interface Page {
    *
    */
   prependListener(event: 'dialog', listener: (dialog: Dialog) => any): this;
+
+  /**
+   * Emitted when a JavaScript dialog has been closed, either by
+   * [dialog.accept([promptText])](https://playwright.dev/docs/api/class-dialog#dialog-accept), by
+   * [dialog.dismiss()](https://playwright.dev/docs/api/class-dialog#dialog-dismiss), or manually by the user in the
+   * headed browser.
+   */
+  prependListener(event: 'dialogclosed', listener: (dialog: Dialog) => any): this;
 
   /**
    * Emitted when the JavaScript
@@ -2089,6 +2141,54 @@ export interface Page {
      */
     timeout?: number;
   }): Promise<string>;
+
+  /**
+   * Captures the aria snapshot of the page as a free form JSON object. Returns the same tree as
+   * [page.ariaSnapshot([options])](https://playwright.dev/docs/api/class-page#page-aria-snapshot), serialized as a JSON
+   * value instead of YAML markup. See
+   * [locator.ariaSnapshotJSON([options])](https://playwright.dev/docs/api/class-locator#locator-aria-snapshot-json) for
+   * the details of the format.
+   * @param options
+   */
+  ariaSnapshotJSON(options?: {
+    /**
+     * When `true`, includes each element's bounding box as a `box` property with `x`, `y`, `width` and `height`.
+     * Coordinates are relative to the viewport, in CSS pixels, as returned by
+     * [`Element.getBoundingClientRect()`](https://developer.mozilla.org/en-US/docs/Web/API/Element/getBoundingClientRect).
+     * Defaults to `false`.
+     */
+    boxes?: boolean;
+
+    /**
+     * When specified, limits the depth of the snapshot.
+     */
+    depth?: number;
+
+    /**
+     * When set to `"ai"`, returns a snapshot optimized for AI consumption: including element references like `[ref=e2]`
+     * and snapshots of `<iframe>`s. Defaults to `"default"`.
+     */
+    mode?: "ai"|"default";
+
+    /**
+     * Allows to cancel the operation using an
+     * [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the
+     * operation will be aborted and throw an error. Note that providing a signal does not disable the default timeout,
+     * which can be changed using
+     * [browserContext.setDefaultTimeout(timeout)](https://playwright.dev/docs/api/class-browsercontext#browser-context-set-default-timeout)
+     * or [page.setDefaultTimeout(timeout)](https://playwright.dev/docs/api/class-page#page-set-default-timeout); pass
+     * `timeout: 0` to disable the timeout entirely.
+     */
+    signal?: AbortSignal;
+
+    /**
+     * Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout`
+     * option in the config, or by using the
+     * [browserContext.setDefaultTimeout(timeout)](https://playwright.dev/docs/api/class-browsercontext#browser-context-set-default-timeout)
+     * or [page.setDefaultTimeout(timeout)](https://playwright.dev/docs/api/class-page#page-set-default-timeout) methods.
+     */
+    timeout?: number;
+  }): Promise<Serializable>;
 
   /**
    * Brings page to front (activates tab).
@@ -2896,6 +2996,11 @@ export interface Page {
    * When working with iframes, you can create a frame locator that will enter the iframe and allow selecting elements
    * in that iframe.
    *
+   * When called without [`selector`](https://playwright.dev/docs/api/class-page#page-frame-locator-option-selector),
+   * the search starts in any frame on the page - the main frame or any of the iframes - so that you don't need to
+   * locate each iframe first. Note that the rest of the locator is resolved inside a single frame, just like any other
+   * locator. If it matches elements inside multiple frames, an error is thrown.
+   *
    * **Usage**
    *
    * Following snippet locates element with text "Submit" in the iframe with id `my-frame`, like `<iframe
@@ -2906,9 +3011,16 @@ export interface Page {
    * await locator.click();
    * ```
    *
-   * @param selector A selector to use when resolving DOM element.
+   * Following snippet locates a button, either in the main frame or in one of the iframes:
+   *
+   * ```js
+   * const locator = page.frameLocator().getByRole('button');
+   * await locator.click();
+   * ```
+   *
+   * @param selector A selector that matches the frame element. When not specified, locator is matched in any frame on the page.
    */
-  frameLocator(selector: string): FrameLocator;
+  frameLocator(selector?: string): FrameLocator;
 
   /**
    * An array of all frames attached to the page.
@@ -3080,13 +3192,6 @@ export interface Page {
    * @param options
    */
   getByRole(role: "alert"|"alertdialog"|"application"|"article"|"banner"|"blockquote"|"button"|"caption"|"cell"|"checkbox"|"code"|"columnheader"|"combobox"|"complementary"|"contentinfo"|"definition"|"deletion"|"dialog"|"directory"|"document"|"emphasis"|"feed"|"figure"|"form"|"generic"|"grid"|"gridcell"|"group"|"heading"|"img"|"insertion"|"link"|"list"|"listbox"|"listitem"|"log"|"main"|"marquee"|"math"|"meter"|"menu"|"menubar"|"menuitem"|"menuitemcheckbox"|"menuitemradio"|"navigation"|"none"|"note"|"option"|"paragraph"|"presentation"|"progressbar"|"radio"|"radiogroup"|"region"|"row"|"rowgroup"|"rowheader"|"scrollbar"|"search"|"searchbox"|"separator"|"slider"|"spinbutton"|"status"|"strong"|"subscript"|"superscript"|"switch"|"tab"|"table"|"tablist"|"tabpanel"|"term"|"textbox"|"time"|"timer"|"toolbar"|"tooltip"|"tree"|"treegrid"|"treeitem", options?: {
-    /**
-     * An attribute that is usually set by `aria-busy`.
-     *
-     * Learn more about [`aria-busy`](https://www.w3.org/TR/wai-aria-1.2/#aria-busy).
-     */
-    busy?: boolean;
-
     /**
      * An attribute that is usually set by `aria-checked` or native `<input type=checkbox>` controls.
      *
@@ -3290,6 +3395,13 @@ export interface Page {
    * the last redirect. If cannot go back, returns `null`.
    *
    * Navigate to the previous page in history.
+   *
+   * **NOTE** **Testing Back/Forward Cache (BFCache) is not supported.** By default, Playwright disables the
+   * Back/Forward Cache across all browsers. Even if explicitly enabled, Playwright's internal state relies on
+   * network-level navigation events. Because BFCache restores unfreeze the DOM without firing these events, using
+   * `page.goBack()` or `page.goForward()` to trigger a BFCache restore will result in timeouts and a desynchronized
+   * `Page` state.
+   *
    * @param options
    */
   goBack(options?: {
@@ -3331,6 +3443,13 @@ export interface Page {
    * the last redirect. If cannot go forward, returns `null`.
    *
    * Navigate to the next page in history.
+   *
+   * **NOTE** **Testing Back/Forward Cache (BFCache) is not supported.** By default, Playwright disables the
+   * Back/Forward Cache across all browsers. Even if explicitly enabled, Playwright's internal state relies on
+   * network-level navigation events. Because BFCache restores unfreeze the DOM without firing these events, using
+   * `page.goBack()` or `page.goForward()` to trigger a BFCache restore will result in timeouts and a desynchronized
+   * `Page` state.
+   *
    * @param options
    */
   goForward(options?: {
@@ -5252,6 +5371,14 @@ export interface Page {
   waitForEvent(event: 'dialog', optionsOrPredicate?: { predicate?: (dialog: Dialog) => boolean | Promise<boolean>, timeout?: number, signal?: AbortSignal } | ((dialog: Dialog) => boolean | Promise<boolean>)): Promise<Dialog>;
 
   /**
+   * Emitted when a JavaScript dialog has been closed, either by
+   * [dialog.accept([promptText])](https://playwright.dev/docs/api/class-dialog#dialog-accept), by
+   * [dialog.dismiss()](https://playwright.dev/docs/api/class-dialog#dialog-dismiss), or manually by the user in the
+   * headed browser.
+   */
+  waitForEvent(event: 'dialogclosed', optionsOrPredicate?: { predicate?: (dialog: Dialog) => boolean | Promise<boolean>, timeout?: number, signal?: AbortSignal } | ((dialog: Dialog) => boolean | Promise<boolean>)): Promise<Dialog>;
+
+  /**
    * Emitted when the JavaScript
    * [`DOMContentLoaded`](https://developer.mozilla.org/en-US/docs/Web/Events/DOMContentLoaded) event is dispatched.
    */
@@ -5793,14 +5920,15 @@ export interface Frame {
    * [`pageFunction`](https://playwright.dev/docs/api/class-frame#frame-evaluate-option-expression).
    *
    * If the function passed to the
-   * [frame.evaluate(pageFunction[, arg])](https://playwright.dev/docs/api/class-frame#frame-evaluate) returns a
-   * [Promise], then [frame.evaluate(pageFunction[, arg])](https://playwright.dev/docs/api/class-frame#frame-evaluate)
-   * would wait for the promise to resolve and return its value.
+   * [frame.evaluate(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-frame#frame-evaluate) returns
+   * a [Promise], then
+   * [frame.evaluate(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-frame#frame-evaluate) would
+   * wait for the promise to resolve and return its value.
    *
    * If the function passed to the
-   * [frame.evaluate(pageFunction[, arg])](https://playwright.dev/docs/api/class-frame#frame-evaluate) returns a
-   * non-[Serializable] value, then
-   * [frame.evaluate(pageFunction[, arg])](https://playwright.dev/docs/api/class-frame#frame-evaluate) returns
+   * [frame.evaluate(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-frame#frame-evaluate) returns
+   * a non-[Serializable] value, then
+   * [frame.evaluate(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-frame#frame-evaluate) returns
    * `undefined`. Playwright also supports transferring some additional values that are not serializable by `JSON`:
    * `-0`, `NaN`, `Infinity`, `-Infinity`.
    *
@@ -5820,7 +5948,7 @@ export interface Frame {
    * ```
    *
    * [ElementHandle](https://playwright.dev/docs/api/class-elementhandle) instances can be passed as an argument to the
-   * [frame.evaluate(pageFunction[, arg])](https://playwright.dev/docs/api/class-frame#frame-evaluate):
+   * [frame.evaluate(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-frame#frame-evaluate):
    *
    * ```js
    * const bodyHandle = await frame.evaluateHandle('document.body');
@@ -5833,21 +5961,23 @@ export interface Frame {
    * @param pageFunction Function to be evaluated in the page context.
    * @param arg Optional argument to pass to
    * [`pageFunction`](https://playwright.dev/docs/api/class-frame#frame-evaluate-option-expression).
+   * @param options
    */
-  evaluate<R, Arg>(pageFunction: PageFunction<Arg, R>, arg: Arg): Promise<R>;
+  evaluate<R, Arg>(pageFunction: PageFunction<Arg, R>, arg: Arg, options?: { exposeFunctions?: boolean, serialize?: ('Map'|'Set')[], world?: 'main'|'utility' }): Promise<R>;
   /**
    * Returns the return value of
    * [`pageFunction`](https://playwright.dev/docs/api/class-frame#frame-evaluate-option-expression).
    *
    * If the function passed to the
-   * [frame.evaluate(pageFunction[, arg])](https://playwright.dev/docs/api/class-frame#frame-evaluate) returns a
-   * [Promise], then [frame.evaluate(pageFunction[, arg])](https://playwright.dev/docs/api/class-frame#frame-evaluate)
-   * would wait for the promise to resolve and return its value.
+   * [frame.evaluate(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-frame#frame-evaluate) returns
+   * a [Promise], then
+   * [frame.evaluate(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-frame#frame-evaluate) would
+   * wait for the promise to resolve and return its value.
    *
    * If the function passed to the
-   * [frame.evaluate(pageFunction[, arg])](https://playwright.dev/docs/api/class-frame#frame-evaluate) returns a
-   * non-[Serializable] value, then
-   * [frame.evaluate(pageFunction[, arg])](https://playwright.dev/docs/api/class-frame#frame-evaluate) returns
+   * [frame.evaluate(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-frame#frame-evaluate) returns
+   * a non-[Serializable] value, then
+   * [frame.evaluate(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-frame#frame-evaluate) returns
    * `undefined`. Playwright also supports transferring some additional values that are not serializable by `JSON`:
    * `-0`, `NaN`, `Infinity`, `-Infinity`.
    *
@@ -5867,7 +5997,7 @@ export interface Frame {
    * ```
    *
    * [ElementHandle](https://playwright.dev/docs/api/class-elementhandle) instances can be passed as an argument to the
-   * [frame.evaluate(pageFunction[, arg])](https://playwright.dev/docs/api/class-frame#frame-evaluate):
+   * [frame.evaluate(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-frame#frame-evaluate):
    *
    * ```js
    * const bodyHandle = await frame.evaluateHandle('document.body');
@@ -5880,8 +6010,9 @@ export interface Frame {
    * @param pageFunction Function to be evaluated in the page context.
    * @param arg Optional argument to pass to
    * [`pageFunction`](https://playwright.dev/docs/api/class-frame#frame-evaluate-option-expression).
+   * @param options
    */
-  evaluate<R>(pageFunction: PageFunction<void, R>, arg?: any): Promise<R>;
+  evaluate<R>(pageFunction: PageFunction<void, R>, arg?: any, options?: { exposeFunctions?: boolean, serialize?: ('Map'|'Set')[], world?: 'main'|'utility' }): Promise<R>;
 
   /**
    * Returns the return value of
@@ -5889,15 +6020,16 @@ export interface Frame {
    * [JSHandle](https://playwright.dev/docs/api/class-jshandle).
    *
    * The only difference between
-   * [frame.evaluate(pageFunction[, arg])](https://playwright.dev/docs/api/class-frame#frame-evaluate) and
-   * [frame.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-frame#frame-evaluate-handle) is
-   * that [frame.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-frame#frame-evaluate-handle)
+   * [frame.evaluate(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-frame#frame-evaluate) and
+   * [frame.evaluateHandle(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-frame#frame-evaluate-handle)
+   * is that
+   * [frame.evaluateHandle(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-frame#frame-evaluate-handle)
    * returns [JSHandle](https://playwright.dev/docs/api/class-jshandle).
    *
    * If the function, passed to the
-   * [frame.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-frame#frame-evaluate-handle),
+   * [frame.evaluateHandle(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-frame#frame-evaluate-handle),
    * returns a [Promise], then
-   * [frame.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-frame#frame-evaluate-handle)
+   * [frame.evaluateHandle(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-frame#frame-evaluate-handle)
    * would wait for the promise to resolve and return its value.
    *
    * **Usage**
@@ -5914,7 +6046,7 @@ export interface Frame {
    * ```
    *
    * [JSHandle](https://playwright.dev/docs/api/class-jshandle) instances can be passed as an argument to the
-   * [frame.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-frame#frame-evaluate-handle):
+   * [frame.evaluateHandle(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-frame#frame-evaluate-handle):
    *
    * ```js
    * const aHandle = await frame.evaluateHandle(() => document.body);
@@ -5928,23 +6060,25 @@ export interface Frame {
    * @param pageFunction Function to be evaluated in the page context.
    * @param arg Optional argument to pass to
    * [`pageFunction`](https://playwright.dev/docs/api/class-frame#frame-evaluate-handle-option-expression).
+   * @param options
    */
-  evaluateHandle<R, Arg>(pageFunction: PageFunction<Arg, R>, arg: Arg): Promise<SmartHandle<R>>;
+  evaluateHandle<R, Arg>(pageFunction: PageFunction<Arg, R>, arg: Arg, options?: { exposeFunctions?: boolean, serialize?: ('Map'|'Set')[] }): Promise<SmartHandle<R>>;
   /**
    * Returns the return value of
    * [`pageFunction`](https://playwright.dev/docs/api/class-frame#frame-evaluate-handle-option-expression) as a
    * [JSHandle](https://playwright.dev/docs/api/class-jshandle).
    *
    * The only difference between
-   * [frame.evaluate(pageFunction[, arg])](https://playwright.dev/docs/api/class-frame#frame-evaluate) and
-   * [frame.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-frame#frame-evaluate-handle) is
-   * that [frame.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-frame#frame-evaluate-handle)
+   * [frame.evaluate(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-frame#frame-evaluate) and
+   * [frame.evaluateHandle(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-frame#frame-evaluate-handle)
+   * is that
+   * [frame.evaluateHandle(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-frame#frame-evaluate-handle)
    * returns [JSHandle](https://playwright.dev/docs/api/class-jshandle).
    *
    * If the function, passed to the
-   * [frame.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-frame#frame-evaluate-handle),
+   * [frame.evaluateHandle(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-frame#frame-evaluate-handle),
    * returns a [Promise], then
-   * [frame.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-frame#frame-evaluate-handle)
+   * [frame.evaluateHandle(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-frame#frame-evaluate-handle)
    * would wait for the promise to resolve and return its value.
    *
    * **Usage**
@@ -5961,7 +6095,7 @@ export interface Frame {
    * ```
    *
    * [JSHandle](https://playwright.dev/docs/api/class-jshandle) instances can be passed as an argument to the
-   * [frame.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-frame#frame-evaluate-handle):
+   * [frame.evaluateHandle(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-frame#frame-evaluate-handle):
    *
    * ```js
    * const aHandle = await frame.evaluateHandle(() => document.body);
@@ -5975,8 +6109,9 @@ export interface Frame {
    * @param pageFunction Function to be evaluated in the page context.
    * @param arg Optional argument to pass to
    * [`pageFunction`](https://playwright.dev/docs/api/class-frame#frame-evaluate-handle-option-expression).
+   * @param options
    */
-  evaluateHandle<R>(pageFunction: PageFunction<void, R>, arg?: any): Promise<SmartHandle<R>>;
+  evaluateHandle<R>(pageFunction: PageFunction<void, R>, arg?: any, options?: { exposeFunctions?: boolean, serialize?: ('Map'|'Set')[] }): Promise<SmartHandle<R>>;
 
   /**
    * **NOTE** Use locator-based [frame.locator(selector[, options])](https://playwright.dev/docs/api/class-frame#frame-locator)
@@ -6070,7 +6205,7 @@ export interface Frame {
    * [`pageFunction`](https://playwright.dev/docs/api/class-frame#frame-eval-on-selector-option-expression).
    * @param options
    */
-  $eval<K extends keyof HTMLElementTagNameMap, R, Arg>(selector: K, pageFunction: PageFunctionOn<HTMLElementTagNameMap[K], Arg, R>, arg: Arg): Promise<R>;
+  $eval<K extends keyof HTMLElementTagNameMap, R, Arg>(selector: K, pageFunction: PageFunctionOn<HTMLElementTagNameMap[K], Arg, R>, arg: Arg, options?: { world?: 'main'|'utility' }): Promise<R>;
   /**
    * **NOTE** This method does not wait for the element to pass the actionability checks and therefore can lead to the flaky
    * tests. Use
@@ -6103,7 +6238,7 @@ export interface Frame {
    * [`pageFunction`](https://playwright.dev/docs/api/class-frame#frame-eval-on-selector-option-expression).
    * @param options
    */
-  $eval<R, Arg, E extends SVGElement | HTMLElement = SVGElement | HTMLElement>(selector: string, pageFunction: PageFunctionOn<E, Arg, R>, arg: Arg): Promise<R>;
+  $eval<R, Arg, E extends SVGElement | HTMLElement = SVGElement | HTMLElement>(selector: string, pageFunction: PageFunctionOn<E, Arg, R>, arg: Arg, options?: { world?: 'main'|'utility' }): Promise<R>;
   /**
    * **NOTE** This method does not wait for the element to pass the actionability checks and therefore can lead to the flaky
    * tests. Use
@@ -6136,7 +6271,7 @@ export interface Frame {
    * [`pageFunction`](https://playwright.dev/docs/api/class-frame#frame-eval-on-selector-option-expression).
    * @param options
    */
-  $eval<K extends keyof HTMLElementTagNameMap, R>(selector: K, pageFunction: PageFunctionOn<HTMLElementTagNameMap[K], void, R>, arg?: any): Promise<R>;
+  $eval<K extends keyof HTMLElementTagNameMap, R>(selector: K, pageFunction: PageFunctionOn<HTMLElementTagNameMap[K], void, R>, arg?: any, options?: { world?: 'main'|'utility' }): Promise<R>;
   /**
    * **NOTE** This method does not wait for the element to pass the actionability checks and therefore can lead to the flaky
    * tests. Use
@@ -6169,11 +6304,11 @@ export interface Frame {
    * [`pageFunction`](https://playwright.dev/docs/api/class-frame#frame-eval-on-selector-option-expression).
    * @param options
    */
-  $eval<R, E extends SVGElement | HTMLElement = SVGElement | HTMLElement>(selector: string, pageFunction: PageFunctionOn<E, void, R>, arg?: any): Promise<R>;
+  $eval<R, E extends SVGElement | HTMLElement = SVGElement | HTMLElement>(selector: string, pageFunction: PageFunctionOn<E, void, R>, arg?: any, options?: { world?: 'main'|'utility' }): Promise<R>;
 
   /**
    * **NOTE** In most cases,
-   * [locator.evaluateAll(pageFunction[, arg])](https://playwright.dev/docs/api/class-locator#locator-evaluate-all),
+   * [locator.evaluateAll(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-locator#locator-evaluate-all),
    * other [Locator](https://playwright.dev/docs/api/class-locator) helper methods and web-first assertions do a better
    * job.
    *
@@ -6186,7 +6321,7 @@ export interface Frame {
    *
    * If [`pageFunction`](https://playwright.dev/docs/api/class-frame#frame-eval-on-selector-all-option-expression)
    * returns a [Promise], then
-   * [frame.$$eval(selector, pageFunction[, arg])](https://playwright.dev/docs/api/class-frame#frame-eval-on-selector-all)
+   * [frame.$$eval(selector, pageFunction[, arg, options])](https://playwright.dev/docs/api/class-frame#frame-eval-on-selector-all)
    * would wait for the promise to resolve and return its value.
    *
    * **Usage**
@@ -6199,11 +6334,12 @@ export interface Frame {
    * @param pageFunction Function to be evaluated in the page context.
    * @param arg Optional argument to pass to
    * [`pageFunction`](https://playwright.dev/docs/api/class-frame#frame-eval-on-selector-all-option-expression).
+   * @param options
    */
-  $$eval<K extends keyof HTMLElementTagNameMap, R, Arg>(selector: K, pageFunction: PageFunctionOn<HTMLElementTagNameMap[K][], Arg, R>, arg: Arg): Promise<R>;
+  $$eval<K extends keyof HTMLElementTagNameMap, R, Arg>(selector: K, pageFunction: PageFunctionOn<HTMLElementTagNameMap[K][], Arg, R>, arg: Arg, options?: { world?: 'main'|'utility' }): Promise<R>;
   /**
    * **NOTE** In most cases,
-   * [locator.evaluateAll(pageFunction[, arg])](https://playwright.dev/docs/api/class-locator#locator-evaluate-all),
+   * [locator.evaluateAll(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-locator#locator-evaluate-all),
    * other [Locator](https://playwright.dev/docs/api/class-locator) helper methods and web-first assertions do a better
    * job.
    *
@@ -6216,7 +6352,7 @@ export interface Frame {
    *
    * If [`pageFunction`](https://playwright.dev/docs/api/class-frame#frame-eval-on-selector-all-option-expression)
    * returns a [Promise], then
-   * [frame.$$eval(selector, pageFunction[, arg])](https://playwright.dev/docs/api/class-frame#frame-eval-on-selector-all)
+   * [frame.$$eval(selector, pageFunction[, arg, options])](https://playwright.dev/docs/api/class-frame#frame-eval-on-selector-all)
    * would wait for the promise to resolve and return its value.
    *
    * **Usage**
@@ -6229,11 +6365,12 @@ export interface Frame {
    * @param pageFunction Function to be evaluated in the page context.
    * @param arg Optional argument to pass to
    * [`pageFunction`](https://playwright.dev/docs/api/class-frame#frame-eval-on-selector-all-option-expression).
+   * @param options
    */
-  $$eval<R, Arg, E extends SVGElement | HTMLElement = SVGElement | HTMLElement>(selector: string, pageFunction: PageFunctionOn<E[], Arg, R>, arg: Arg): Promise<R>;
+  $$eval<R, Arg, E extends SVGElement | HTMLElement = SVGElement | HTMLElement>(selector: string, pageFunction: PageFunctionOn<E[], Arg, R>, arg: Arg, options?: { world?: 'main'|'utility' }): Promise<R>;
   /**
    * **NOTE** In most cases,
-   * [locator.evaluateAll(pageFunction[, arg])](https://playwright.dev/docs/api/class-locator#locator-evaluate-all),
+   * [locator.evaluateAll(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-locator#locator-evaluate-all),
    * other [Locator](https://playwright.dev/docs/api/class-locator) helper methods and web-first assertions do a better
    * job.
    *
@@ -6246,7 +6383,7 @@ export interface Frame {
    *
    * If [`pageFunction`](https://playwright.dev/docs/api/class-frame#frame-eval-on-selector-all-option-expression)
    * returns a [Promise], then
-   * [frame.$$eval(selector, pageFunction[, arg])](https://playwright.dev/docs/api/class-frame#frame-eval-on-selector-all)
+   * [frame.$$eval(selector, pageFunction[, arg, options])](https://playwright.dev/docs/api/class-frame#frame-eval-on-selector-all)
    * would wait for the promise to resolve and return its value.
    *
    * **Usage**
@@ -6259,11 +6396,12 @@ export interface Frame {
    * @param pageFunction Function to be evaluated in the page context.
    * @param arg Optional argument to pass to
    * [`pageFunction`](https://playwright.dev/docs/api/class-frame#frame-eval-on-selector-all-option-expression).
+   * @param options
    */
-  $$eval<K extends keyof HTMLElementTagNameMap, R>(selector: K, pageFunction: PageFunctionOn<HTMLElementTagNameMap[K][], void, R>, arg?: any): Promise<R>;
+  $$eval<K extends keyof HTMLElementTagNameMap, R>(selector: K, pageFunction: PageFunctionOn<HTMLElementTagNameMap[K][], void, R>, arg?: any, options?: { world?: 'main'|'utility' }): Promise<R>;
   /**
    * **NOTE** In most cases,
-   * [locator.evaluateAll(pageFunction[, arg])](https://playwright.dev/docs/api/class-locator#locator-evaluate-all),
+   * [locator.evaluateAll(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-locator#locator-evaluate-all),
    * other [Locator](https://playwright.dev/docs/api/class-locator) helper methods and web-first assertions do a better
    * job.
    *
@@ -6276,7 +6414,7 @@ export interface Frame {
    *
    * If [`pageFunction`](https://playwright.dev/docs/api/class-frame#frame-eval-on-selector-all-option-expression)
    * returns a [Promise], then
-   * [frame.$$eval(selector, pageFunction[, arg])](https://playwright.dev/docs/api/class-frame#frame-eval-on-selector-all)
+   * [frame.$$eval(selector, pageFunction[, arg, options])](https://playwright.dev/docs/api/class-frame#frame-eval-on-selector-all)
    * would wait for the promise to resolve and return its value.
    *
    * **Usage**
@@ -6289,8 +6427,9 @@ export interface Frame {
    * @param pageFunction Function to be evaluated in the page context.
    * @param arg Optional argument to pass to
    * [`pageFunction`](https://playwright.dev/docs/api/class-frame#frame-eval-on-selector-all-option-expression).
+   * @param options
    */
-  $$eval<R, E extends SVGElement | HTMLElement = SVGElement | HTMLElement>(selector: string, pageFunction: PageFunctionOn<E[], void, R>, arg?: any): Promise<R>;
+  $$eval<R, E extends SVGElement | HTMLElement = SVGElement | HTMLElement>(selector: string, pageFunction: PageFunctionOn<E[], void, R>, arg?: any, options?: { world?: 'main'|'utility' }): Promise<R>;
 
   /**
    * Returns when the
@@ -7200,6 +7339,11 @@ export interface Frame {
    * When working with iframes, you can create a frame locator that will enter the iframe and allow selecting elements
    * in that iframe.
    *
+   * When called without [`selector`](https://playwright.dev/docs/api/class-frame#frame-frame-locator-option-selector),
+   * the search starts in this frame or in any of the iframes inside it, so that you don't need to locate each iframe
+   * first. Note that the rest of the locator is resolved inside a single frame, just like any other locator. If it
+   * matches elements inside multiple frames, an error is thrown.
+   *
    * **Usage**
    *
    * Following snippet locates element with text "Submit" in the iframe with id `my-frame`, like `<iframe
@@ -7210,9 +7354,17 @@ export interface Frame {
    * await locator.click();
    * ```
    *
-   * @param selector A selector to use when resolving DOM element.
+   * Following snippet locates a button, either in the frame or in one of the iframes inside it:
+   *
+   * ```js
+   * const locator = frame.frameLocator().getByRole('button');
+   * await locator.click();
+   * ```
+   *
+   * @param selector A selector that matches the frame element. When not specified, locator is matched in this frame or in any of the
+   * iframes inside it.
    */
-  frameLocator(selector: string): FrameLocator;
+  frameLocator(selector?: string): FrameLocator;
 
   /**
    * **NOTE** Use locator-based
@@ -7379,13 +7531,6 @@ export interface Frame {
    * @param options
    */
   getByRole(role: "alert"|"alertdialog"|"application"|"article"|"banner"|"blockquote"|"button"|"caption"|"cell"|"checkbox"|"code"|"columnheader"|"combobox"|"complementary"|"contentinfo"|"definition"|"deletion"|"dialog"|"directory"|"document"|"emphasis"|"feed"|"figure"|"form"|"generic"|"grid"|"gridcell"|"group"|"heading"|"img"|"insertion"|"link"|"list"|"listbox"|"listitem"|"log"|"main"|"marquee"|"math"|"meter"|"menu"|"menubar"|"menuitem"|"menuitemcheckbox"|"menuitemradio"|"navigation"|"none"|"note"|"option"|"paragraph"|"presentation"|"progressbar"|"radio"|"radiogroup"|"region"|"row"|"rowgroup"|"rowheader"|"scrollbar"|"search"|"searchbox"|"separator"|"slider"|"spinbutton"|"status"|"strong"|"subscript"|"superscript"|"switch"|"tab"|"table"|"tablist"|"tabpanel"|"term"|"textbox"|"time"|"timer"|"toolbar"|"tooltip"|"tree"|"treegrid"|"treeitem", options?: {
-    /**
-     * An attribute that is usually set by `aria-busy`.
-     *
-     * Learn more about [`aria-busy`](https://www.w3.org/TR/wai-aria-1.2/#aria-busy).
-     */
-    busy?: boolean;
-
     /**
      * An attribute that is usually set by `aria-checked` or native `<input type=checkbox>` controls.
      *
@@ -9074,16 +9219,17 @@ export interface BrowserContext {
    * ```
    *
    * **NOTE** The order of evaluation of multiple scripts installed via
-   * [browserContext.addInitScript(script[, arg])](https://playwright.dev/docs/api/class-browsercontext#browser-context-add-init-script)
-   * and [page.addInitScript(script[, arg])](https://playwright.dev/docs/api/class-page#page-add-init-script) is not
-   * defined.
+   * [browserContext.addInitScript(script[, arg, options])](https://playwright.dev/docs/api/class-browsercontext#browser-context-add-init-script)
+   * and [page.addInitScript(script[, arg, options])](https://playwright.dev/docs/api/class-page#page-add-init-script)
+   * is not defined.
    *
    * @param script Script to be evaluated in all pages in the browser context.
    * @param arg Optional argument to pass to
    * [`script`](https://playwright.dev/docs/api/class-browsercontext#browser-context-add-init-script-option-script)
    * (only supported when passing a function).
+   * @param options
    */
-  addInitScript<Arg>(script: PageFunction<Arg, any> | { path?: string, content?: string }, arg?: Arg): Promise<Disposable>;
+  addInitScript<Arg>(script: PageFunction<Arg, any> | { path?: string, content?: string }, arg?: Arg, options?: { exposeFunctions?: boolean }): Promise<Disposable>;
 
   /**
    * Removes all the listeners of the given type (or all registered listeners if no type given). Allows to wait for
@@ -9163,6 +9309,14 @@ export interface BrowserContext {
    *
    */
   on(event: 'dialog', listener: (dialog: Dialog) => any): this;
+
+  /**
+   * Emitted when a JavaScript dialog in any page belonging to this context has been closed, either by
+   * [dialog.accept([promptText])](https://playwright.dev/docs/api/class-dialog#dialog-accept), by
+   * [dialog.dismiss()](https://playwright.dev/docs/api/class-dialog#dialog-dismiss), or manually by the user in the
+   * headed browser.
+   */
+  on(event: 'dialogclosed', listener: (dialog: Dialog) => any): this;
 
   /**
    * Emitted when attachment download started in any page belonging to this context. User can access basic file
@@ -9312,6 +9466,11 @@ export interface BrowserContext {
   /**
    * Adds an event listener that will be automatically removed after it is triggered once. See `addListener` for more information about this event.
    */
+  once(event: 'dialogclosed', listener: (dialog: Dialog) => any): this;
+
+  /**
+   * Adds an event listener that will be automatically removed after it is triggered once. See `addListener` for more information about this event.
+   */
   once(event: 'download', listener: (download: Download) => any): this;
 
   /**
@@ -9429,6 +9588,14 @@ export interface BrowserContext {
    *
    */
   addListener(event: 'dialog', listener: (dialog: Dialog) => any): this;
+
+  /**
+   * Emitted when a JavaScript dialog in any page belonging to this context has been closed, either by
+   * [dialog.accept([promptText])](https://playwright.dev/docs/api/class-dialog#dialog-accept), by
+   * [dialog.dismiss()](https://playwright.dev/docs/api/class-dialog#dialog-dismiss), or manually by the user in the
+   * headed browser.
+   */
+  addListener(event: 'dialogclosed', listener: (dialog: Dialog) => any): this;
 
   /**
    * Emitted when attachment download started in any page belonging to this context. User can access basic file
@@ -9578,6 +9745,11 @@ export interface BrowserContext {
   /**
    * Removes an event listener added by `on` or `addListener`.
    */
+  removeListener(event: 'dialogclosed', listener: (dialog: Dialog) => any): this;
+
+  /**
+   * Removes an event listener added by `on` or `addListener`.
+   */
   removeListener(event: 'download', listener: (download: Download) => any): this;
 
   /**
@@ -9659,6 +9831,11 @@ export interface BrowserContext {
    * Removes an event listener added by `on` or `addListener`.
    */
   off(event: 'dialog', listener: (dialog: Dialog) => any): this;
+
+  /**
+   * Removes an event listener added by `on` or `addListener`.
+   */
+  off(event: 'dialogclosed', listener: (dialog: Dialog) => any): this;
 
   /**
    * Removes an event listener added by `on` or `addListener`.
@@ -9780,6 +9957,14 @@ export interface BrowserContext {
    *
    */
   prependListener(event: 'dialog', listener: (dialog: Dialog) => any): this;
+
+  /**
+   * Emitted when a JavaScript dialog in any page belonging to this context has been closed, either by
+   * [dialog.accept([promptText])](https://playwright.dev/docs/api/class-dialog#dialog-accept), by
+   * [dialog.dismiss()](https://playwright.dev/docs/api/class-dialog#dialog-dismiss), or manually by the user in the
+   * headed browser.
+   */
+  prependListener(event: 'dialogclosed', listener: (dialog: Dialog) => any): this;
 
   /**
    * Emitted when attachment download started in any page belonging to this context. User can access basic file
@@ -10241,15 +10426,6 @@ export interface BrowserContext {
    */
   routeFromHAR(har: string, options?: {
     /**
-     * If set to `true`, requests made via [APIRequestContext](https://playwright.dev/docs/api/class-apirequestcontext)
-     * (such as [browserContext.request](https://playwright.dev/docs/api/class-browsercontext#browser-context-request) or
-     * [page.request](https://playwright.dev/docs/api/class-page#page-request)) are also served from the HAR file. By
-     * default these requests are sent to the network, matching the behavior prior to v1.62. Defaults to `false` for
-     * backward compatibility.
-     */
-    interceptAPIRequests?: boolean;
-
-    /**
      * - If set to 'abort' any request not found in the HAR file will be aborted.
      * - If set to 'fallback' falls through to the next route handler in the handler chain.
      *
@@ -10403,25 +10579,51 @@ export interface BrowserContext {
   }): Promise<void>;
 
   /**
-   * @deprecated Browsers may cache credentials after successful authentication. Create a new browser context instead.
-   * @param httpCredentials
+   * Sets the credentials for HTTP authentication for this browser context.
+   *
+   * **NOTE** Browsers may cache credentials per origin after a successful authentication, so changing credentials for
+   * an origin that has already been authenticated may have no effect.
+   *
+   * @param httpCredentials Pass an array to use different credentials for different origins. The first entry that matches the request origin
+   * is used, and entries with no origin match any request.
    */
   setHTTPCredentials(httpCredentials: null|{
     username: string;
 
     password: string;
-  }): Promise<void>;
+
+    /**
+     * Restrain sending http credentials on specific origin (scheme://host:port).
+     */
+    origin?: string;
+  }|ReadonlyArray<{
+    username: string;
+
+    password: string;
+
+    /**
+     * Restrain sending http credentials on specific origin (scheme://host:port).
+     */
+    origin?: string;
+  }>): Promise<void>;
 
   /**
    * @param offline Whether to emulate network being offline for the browser context.
+   *
+   * **NOTE** Offline emulation only affects requests that go through the browser's regular network stack, such as page
+   * navigations, `fetch()`, `XMLHttpRequest` and WebSockets. It does not affect WebRTC traffic: established
+   * `RTCPeerConnection`s keep sending and receiving media over UDP. To test WebRTC connection loss, interrupt the
+   * connection outside the browser, for example by stopping the TURN server or using an OS-level firewall.
+   *
    */
   setOffline(offline: boolean): Promise<void>;
 
   /**
-   * Clears the existing cookies, local storage, IndexedDB entries and virtual WebAuthn credentials, and sets the new
-   * storage state. When the storage state contains credentials, the virtual WebAuthn authenticator is installed
-   * (equivalent to [credentials.install()](https://playwright.dev/docs/api/class-credentials#credentials-install)),
-   * preventing all real authenticators from working in this context.
+   * Clears the existing cookies, local storage, IndexedDB entries, origin private file system entries and virtual
+   * WebAuthn credentials, and sets the new storage state. When the storage state contains credentials, the virtual
+   * WebAuthn authenticator is installed (equivalent to
+   * [credentials.install()](https://playwright.dev/docs/api/class-credentials#credentials-install)), preventing all
+   * real authenticators from working in this context.
    *
    * **Usage**
    *
@@ -10487,7 +10689,7 @@ export interface BrowserContext {
 
   /**
    * Returns storage state for this browser context, contains current cookies, local storage snapshot, IndexedDB
-   * snapshot and virtual WebAuthn credentials.
+   * snapshot, origin private file system snapshot and virtual WebAuthn credentials.
    * @param options
    */
   storageState(options?: {
@@ -10510,6 +10712,16 @@ export interface BrowserContext {
      * enable this.
      */
     indexedDB?: boolean;
+
+    /**
+     * Set to `true` to include the
+     * [origin private file system](https://developer.mozilla.org/en-US/docs/Web/API/File_System_API/Origin_private_file_system)
+     * in the storage state snapshot.
+     *
+     * **NOTE** OPFS is currently not supported in ephemeral WebKit contexts.
+     *
+     */
+    opfs?: boolean;
 
     /**
      * The file path to save the storage state to. If
@@ -10638,6 +10850,14 @@ export interface BrowserContext {
    *
    */
   waitForEvent(event: 'dialog', optionsOrPredicate?: { predicate?: (dialog: Dialog) => boolean | Promise<boolean>, timeout?: number, signal?: AbortSignal } | ((dialog: Dialog) => boolean | Promise<boolean>)): Promise<Dialog>;
+
+  /**
+   * Emitted when a JavaScript dialog in any page belonging to this context has been closed, either by
+   * [dialog.accept([promptText])](https://playwright.dev/docs/api/class-dialog#dialog-accept), by
+   * [dialog.dismiss()](https://playwright.dev/docs/api/class-dialog#dialog-dismiss), or manually by the user in the
+   * headed browser.
+   */
+  waitForEvent(event: 'dialogclosed', optionsOrPredicate?: { predicate?: (dialog: Dialog) => boolean | Promise<boolean>, timeout?: number, signal?: AbortSignal } | ((dialog: Dialog) => boolean | Promise<boolean>)): Promise<Dialog>;
 
   /**
    * Emitted when attachment download started in any page belonging to this context. User can access basic file
@@ -11072,8 +11292,10 @@ export interface Browser {
      * with an exact match to the request origin that the certificate is valid for.
      *
      * Client certificate authentication is only active when at least one client certificate is provided. If you want to
-     * reject all client certificates sent by the server, you need to provide a client certificate with an `origin` that
-     * does not match any of the domains you plan to visit.
+     * reject all client certificates sent by the server for an origin you visit, set `noCertificate` to `true` for that
+     * origin instead of omitting it: omitting the origin entirely leaves the connection unintercepted, so the server's
+     * own certificate request still reaches the browser and may trigger a native certificate-selection prompt on some
+     * platforms. `noCertificate` forces interception for that origin while still presenting no client certificate.
      *
      * **NOTE** When using WebKit on macOS, accessing `localhost` will not pick up client certificates. You can make it
      * work by replacing `localhost` with `local.playwright`.
@@ -11119,6 +11341,11 @@ export interface Browser {
        * Passphrase for the private key (PEM or PFX).
        */
       passphrase?: string;
+
+      /**
+       * Explicitly send no client certificate for this origin. Must be the only field set besides `origin`.
+       */
+      noCertificate?: boolean;
     }>;
 
     /**
@@ -11180,6 +11407,9 @@ export interface Browser {
     /**
      * Credentials for [HTTP authentication](https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication). If no
      * origin is specified, the username and password are sent to any servers upon unauthorized responses.
+     *
+     * Pass an array to use different credentials for different origins. The first entry that matches the request origin
+     * is used, and entries with no origin match any request.
      */
     httpCredentials?: {
       username: string;
@@ -11199,7 +11429,25 @@ export interface Browser {
        * `WWW-Authenticate` header is received. Defaults to `'unauthorized'`.
        */
       send?: "unauthorized"|"always";
-    };
+    }|Array<{
+      username: string;
+
+      password: string;
+
+      /**
+       * Restrain sending http credentials on specific origin (scheme://host:port).
+       */
+      origin?: string;
+
+      /**
+       * This option only applies to the requests sent from corresponding
+       * [APIRequestContext](https://playwright.dev/docs/api/class-apirequestcontext) and does not affect requests sent from
+       * the browser. `'always'` - `Authorization` header with basic authentication credentials will be sent with the each
+       * API request. `'unauthorized` - the credentials are only sent when 401 (Unauthorized) response with
+       * `WWW-Authenticate` header is received. Defaults to `'unauthorized'`.
+       */
+      send?: "unauthorized"|"always";
+    }>;
 
     /**
      * Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
@@ -11344,6 +11592,12 @@ export interface Browser {
       };
 
       /**
+       * Frame rate of the recorded videos in frames per second. Defaults to `25`. Firefox and WebKit currently capture up
+       * to 25 frames per second.
+       */
+      fps?: number;
+
+      /**
        * If specified, enables visual annotations on interacted elements during video recording.
        */
       showActions?: {
@@ -11361,6 +11615,12 @@ export interface Browser {
          * Font size of the action title in pixels. Defaults to `24`.
          */
         fontSize?: number;
+
+        /**
+         * Cursor decoration shown for pointer actions. `"pointer"` (the default) renders a mouse pointer that animates from
+         * the previous action point to the next one. `"none"` disables the cursor decoration.
+         */
+        cursor?: "none"|"pointer";
       };
     };
 
@@ -11740,7 +12000,8 @@ export interface Worker {
 
 /**
  * JSHandle represents an in-page JavaScript object. JSHandles can be created with the
- * [page.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate-handle) method.
+ * [page.evaluateHandle(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-page#page-evaluate-handle)
+ * method.
  *
  * ```js
  * const windowHandle = await page.evaluateHandle(() => window);
@@ -11753,8 +12014,8 @@ export interface Worker {
  *
  * JSHandle instances can be used as an argument in
  * [page.$eval(selector, pageFunction[, arg, options])](https://playwright.dev/docs/api/class-page#page-eval-on-selector),
- * [page.evaluate(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate) and
- * [page.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate-handle)
+ * [page.evaluate(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-page#page-evaluate) and
+ * [page.evaluateHandle(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-page#page-evaluate-handle)
  * methods.
  */
 export interface JSHandle<T = any> {
@@ -11778,8 +12039,9 @@ export interface JSHandle<T = any> {
    * @param pageFunction Function to be evaluated in the page context.
    * @param arg Optional argument to pass to
    * [`pageFunction`](https://playwright.dev/docs/api/class-elementhandle#element-handle-evaluate-option-expression).
+   * @param options
    */
-  evaluate<R, Arg, O extends T = T>(pageFunction: PageFunctionOn<O, Arg, R>, arg: Arg): Promise<R>;
+  evaluate<R, Arg, O extends T = T>(pageFunction: PageFunctionOn<O, Arg, R>, arg: Arg, options?: { exposeFunctions?: boolean, serialize?: ('Map'|'Set')[] }): Promise<R>;
   /**
    * Returns the return value of
    * [`pageFunction`](https://playwright.dev/docs/api/class-elementhandle#element-handle-evaluate-option-expression).
@@ -11800,8 +12062,9 @@ export interface JSHandle<T = any> {
    * @param pageFunction Function to be evaluated in the page context.
    * @param arg Optional argument to pass to
    * [`pageFunction`](https://playwright.dev/docs/api/class-elementhandle#element-handle-evaluate-option-expression).
+   * @param options
    */
-  evaluate<R, O extends T = T>(pageFunction: PageFunctionOn<O, void, R>, arg?: any): Promise<R>;
+  evaluate<R, O extends T = T>(pageFunction: PageFunctionOn<O, void, R>, arg?: any, options?: { exposeFunctions?: boolean, serialize?: ('Map'|'Set')[] }): Promise<R>;
 
   /**
    * Returns the return value of
@@ -11817,13 +12080,15 @@ export interface JSHandle<T = any> {
    * If the function passed to the `jsHandle.evaluateHandle` returns a [Promise], then `jsHandle.evaluateHandle` would
    * wait for the promise to resolve and return its value.
    *
-   * See [page.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate-handle) for
-   * more details.
+   * See
+   * [page.evaluateHandle(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-page#page-evaluate-handle)
+   * for more details.
    * @param pageFunction Function to be evaluated in the page context.
    * @param arg Optional argument to pass to
    * [`pageFunction`](https://playwright.dev/docs/api/class-elementhandle#element-handle-evaluate-handle-option-expression).
+   * @param options
    */
-  evaluateHandle<R, Arg, O extends T = T>(pageFunction: PageFunctionOn<O, Arg, R>, arg: Arg): Promise<SmartHandle<R>>;
+  evaluateHandle<R, Arg, O extends T = T>(pageFunction: PageFunctionOn<O, Arg, R>, arg: Arg, options?: { exposeFunctions?: boolean, serialize?: ('Map'|'Set')[] }): Promise<SmartHandle<R>>;
   /**
    * Returns the return value of
    * [`pageFunction`](https://playwright.dev/docs/api/class-elementhandle#element-handle-evaluate-handle-option-expression)
@@ -11838,13 +12103,15 @@ export interface JSHandle<T = any> {
    * If the function passed to the `jsHandle.evaluateHandle` returns a [Promise], then `jsHandle.evaluateHandle` would
    * wait for the promise to resolve and return its value.
    *
-   * See [page.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate-handle) for
-   * more details.
+   * See
+   * [page.evaluateHandle(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-page#page-evaluate-handle)
+   * for more details.
    * @param pageFunction Function to be evaluated in the page context.
    * @param arg Optional argument to pass to
    * [`pageFunction`](https://playwright.dev/docs/api/class-elementhandle#element-handle-evaluate-handle-option-expression).
+   * @param options
    */
-  evaluateHandle<R, O extends T = T>(pageFunction: PageFunctionOn<O, void, R>, arg?: any): Promise<SmartHandle<R>>;
+  evaluateHandle<R, O extends T = T>(pageFunction: PageFunctionOn<O, void, R>, arg?: any, options?: { exposeFunctions?: boolean, serialize?: ('Map'|'Set')[] }): Promise<SmartHandle<R>>;
 
   /**
    * Returns a JSON representation of the object. If the object has a `toJSON` function, it **will not be called**.
@@ -11890,6 +12157,185 @@ export interface JSHandle<T = any> {
 }
 
 /**
+ * [APIResponse](https://playwright.dev/docs/api/class-apiresponse) class represents responses returned by
+ * [apiRequestContext.get(url[, options])](https://playwright.dev/docs/api/class-apirequestcontext#api-request-context-get)
+ * and similar methods.
+ */
+export interface APIResponse<T = any> {
+  /**
+   * Returns the JSON representation of response body.
+   *
+   * This method will throw if the response body is not parsable via `JSON.parse`.
+   */
+  json(): Promise<T>;
+  /**
+   * Returns the buffer with response body.
+   */
+  body(): Promise<Buffer>;
+
+  /**
+   * Disposes the body of this response. If not called then the body will stay in memory until the context closes.
+   */
+  dispose(): Promise<void>;
+
+  /**
+   * An object with all the response HTTP headers associated with this response.
+   */
+  headers(): { [key: string]: string; };
+
+  /**
+   * An array with all the response HTTP headers associated with this response. Header names are not lower-cased.
+   * Headers with multiple entries, such as `Set-Cookie`, appear in the array multiple times.
+   */
+  headersArray(): Array<{
+    /**
+     * Name of the header.
+     */
+    name: string;
+
+    /**
+     * Value of the header.
+     */
+    value: string;
+  }>;
+
+  /**
+   * Contains a boolean stating whether the response was successful (status in the range 200-299) or not.
+   */
+  ok(): boolean;
+
+  /**
+   * Returns SSL and other security information. Resolves to `null` for non-HTTPS responses. For redirected requests,
+   * returns the information for the last request in the redirect chain.
+   */
+  securityDetails(): Promise<null|{
+    /**
+     * Common Name component of the Issuer field. from the certificate. This should only be used for informational
+     * purposes. Optional.
+     */
+    issuer?: string;
+
+    /**
+     * The specific TLS protocol used. (e.g. `TLS 1.3`). Optional.
+     */
+    protocol?: string;
+
+    /**
+     * Common Name component of the Subject field from the certificate. This should only be used for informational
+     * purposes. Optional.
+     */
+    subjectName?: string;
+
+    /**
+     * Unix timestamp (in seconds) specifying when this cert becomes valid. Optional.
+     */
+    validFrom?: number;
+
+    /**
+     * Unix timestamp (in seconds) specifying when this cert becomes invalid. Optional.
+     */
+    validTo?: number;
+  }>;
+
+  /**
+   * Returns the IP address and port of the server. Resolves to `null` if the server address is not available. For
+   * redirected requests, returns the information for the last request in the redirect chain.
+   */
+  serverAddr(): Promise<null|{
+    /**
+     * IPv4 or IPV6 address of the server.
+     */
+    ipAddress: string;
+
+    port: number;
+  }>;
+
+  /**
+   * Contains the status code of the response (e.g., 200 for a success).
+   */
+  status(): number;
+
+  /**
+   * Contains the status text of the response (e.g. usually an "OK" for a success).
+   */
+  statusText(): string;
+
+  /**
+   * Returns the text representation of response body.
+   */
+  text(): Promise<string>;
+
+  /**
+   * Returns resource timing information for given response. For redirected requests, returns the information for the
+   * last request in the redirect chain. When the response is served [from the HAR file](https://playwright.dev/docs/mock#replaying-from-har),
+   * timing information is not available and all the values are -1. Find more information at
+   * [Resource Timing API](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceResourceTiming).
+   */
+  timing(): {
+    /**
+     * Request start time in milliseconds elapsed since January 1, 1970 00:00:00 UTC
+     */
+    startTime: number;
+
+    /**
+     * Time immediately before the client starts the domain name lookup for the resource. The value is given in
+     * milliseconds relative to `startTime`, -1 if not available.
+     */
+    domainLookupStart: number;
+
+    /**
+     * Time immediately after the client ends the domain name lookup for the resource. The value is given in milliseconds
+     * relative to `startTime`, -1 if not available.
+     */
+    domainLookupEnd: number;
+
+    /**
+     * Time immediately before the client starts establishing the connection to the server to retrieve the resource. The
+     * value is given in milliseconds relative to `startTime`, -1 if not available.
+     */
+    connectStart: number;
+
+    /**
+     * Time immediately before the client starts the handshake process to secure the current connection. The value is
+     * given in milliseconds relative to `startTime`, -1 if not available.
+     */
+    secureConnectionStart: number;
+
+    /**
+     * Time immediately after the client establishes the connection to the server to retrieve the resource. The value is
+     * given in milliseconds relative to `startTime`, -1 if not available.
+     */
+    connectEnd: number;
+
+    /**
+     * Time immediately before the client starts requesting the resource from the server, cache, or local resource. The
+     * value is given in milliseconds relative to `startTime`, -1 if not available.
+     */
+    requestStart: number;
+
+    /**
+     * Time immediately after the client receives the first byte of the response from the server, cache, or local
+     * resource. The value is given in milliseconds relative to `startTime`, -1 if not available.
+     */
+    responseStart: number;
+
+    /**
+     * Time immediately after the client receives the last byte of the resource or immediately before the transport
+     * connection is closed, whichever comes first. The value is given in milliseconds relative to `startTime`, -1 if not
+     * available.
+     */
+    responseEnd: number;
+  };
+
+  /**
+   * Contains the URL of the response.
+   */
+  url(): string;
+
+  [Symbol.asyncDispose](): Promise<void>;
+}
+
+/**
  * - extends: [JSHandle](https://playwright.dev/docs/api/class-jshandle)
  *
  * ElementHandle represents an in-page DOM element. ElementHandles can be created with the
@@ -11909,7 +12355,8 @@ export interface JSHandle<T = any> {
  *
  * ElementHandle instances can be used as an argument in
  * [page.$eval(selector, pageFunction[, arg, options])](https://playwright.dev/docs/api/class-page#page-eval-on-selector)
- * and [page.evaluate(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate) methods.
+ * and [page.evaluate(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-page#page-evaluate)
+ * methods.
  *
  * The difference between the [Locator](https://playwright.dev/docs/api/class-locator) and ElementHandle is that the
  * ElementHandle points to a particular element, while [Locator](https://playwright.dev/docs/api/class-locator)
@@ -11993,7 +12440,7 @@ export interface ElementHandle<T=Node> extends JSHandle<T> {
    * If
    * [`pageFunction`](https://playwright.dev/docs/api/class-elementhandle#element-handle-eval-on-selector-option-expression)
    * returns a [Promise], then
-   * [elementHandle.$eval(selector, pageFunction[, arg])](https://playwright.dev/docs/api/class-elementhandle#element-handle-eval-on-selector)
+   * [elementHandle.$eval(selector, pageFunction[, arg, options])](https://playwright.dev/docs/api/class-elementhandle#element-handle-eval-on-selector)
    * would wait for the promise to resolve and return its value.
    *
    * **Usage**
@@ -12008,8 +12455,9 @@ export interface ElementHandle<T=Node> extends JSHandle<T> {
    * @param pageFunction Function to be evaluated in the page context.
    * @param arg Optional argument to pass to
    * [`pageFunction`](https://playwright.dev/docs/api/class-elementhandle#element-handle-eval-on-selector-option-expression).
+   * @param options
    */
-  $eval<K extends keyof HTMLElementTagNameMap, R, Arg>(selector: K, pageFunction: PageFunctionOn<HTMLElementTagNameMap[K], Arg, R>, arg: Arg): Promise<R>;
+  $eval<K extends keyof HTMLElementTagNameMap, R, Arg>(selector: K, pageFunction: PageFunctionOn<HTMLElementTagNameMap[K], Arg, R>, arg: Arg, options?: { world?: 'main'|'utility' }): Promise<R>;
   /**
    * **NOTE** This method does not wait for the element to pass actionability checks and therefore can lead to the flaky tests.
    * Use
@@ -12027,7 +12475,7 @@ export interface ElementHandle<T=Node> extends JSHandle<T> {
    * If
    * [`pageFunction`](https://playwright.dev/docs/api/class-elementhandle#element-handle-eval-on-selector-option-expression)
    * returns a [Promise], then
-   * [elementHandle.$eval(selector, pageFunction[, arg])](https://playwright.dev/docs/api/class-elementhandle#element-handle-eval-on-selector)
+   * [elementHandle.$eval(selector, pageFunction[, arg, options])](https://playwright.dev/docs/api/class-elementhandle#element-handle-eval-on-selector)
    * would wait for the promise to resolve and return its value.
    *
    * **Usage**
@@ -12042,8 +12490,9 @@ export interface ElementHandle<T=Node> extends JSHandle<T> {
    * @param pageFunction Function to be evaluated in the page context.
    * @param arg Optional argument to pass to
    * [`pageFunction`](https://playwright.dev/docs/api/class-elementhandle#element-handle-eval-on-selector-option-expression).
+   * @param options
    */
-  $eval<R, Arg, E extends SVGElement | HTMLElement = SVGElement | HTMLElement>(selector: string, pageFunction: PageFunctionOn<E, Arg, R>, arg: Arg): Promise<R>;
+  $eval<R, Arg, E extends SVGElement | HTMLElement = SVGElement | HTMLElement>(selector: string, pageFunction: PageFunctionOn<E, Arg, R>, arg: Arg, options?: { world?: 'main'|'utility' }): Promise<R>;
   /**
    * **NOTE** This method does not wait for the element to pass actionability checks and therefore can lead to the flaky tests.
    * Use
@@ -12061,7 +12510,7 @@ export interface ElementHandle<T=Node> extends JSHandle<T> {
    * If
    * [`pageFunction`](https://playwright.dev/docs/api/class-elementhandle#element-handle-eval-on-selector-option-expression)
    * returns a [Promise], then
-   * [elementHandle.$eval(selector, pageFunction[, arg])](https://playwright.dev/docs/api/class-elementhandle#element-handle-eval-on-selector)
+   * [elementHandle.$eval(selector, pageFunction[, arg, options])](https://playwright.dev/docs/api/class-elementhandle#element-handle-eval-on-selector)
    * would wait for the promise to resolve and return its value.
    *
    * **Usage**
@@ -12076,8 +12525,9 @@ export interface ElementHandle<T=Node> extends JSHandle<T> {
    * @param pageFunction Function to be evaluated in the page context.
    * @param arg Optional argument to pass to
    * [`pageFunction`](https://playwright.dev/docs/api/class-elementhandle#element-handle-eval-on-selector-option-expression).
+   * @param options
    */
-  $eval<K extends keyof HTMLElementTagNameMap, R>(selector: K, pageFunction: PageFunctionOn<HTMLElementTagNameMap[K], void, R>, arg?: any): Promise<R>;
+  $eval<K extends keyof HTMLElementTagNameMap, R>(selector: K, pageFunction: PageFunctionOn<HTMLElementTagNameMap[K], void, R>, arg?: any, options?: { world?: 'main'|'utility' }): Promise<R>;
   /**
    * **NOTE** This method does not wait for the element to pass actionability checks and therefore can lead to the flaky tests.
    * Use
@@ -12095,7 +12545,7 @@ export interface ElementHandle<T=Node> extends JSHandle<T> {
    * If
    * [`pageFunction`](https://playwright.dev/docs/api/class-elementhandle#element-handle-eval-on-selector-option-expression)
    * returns a [Promise], then
-   * [elementHandle.$eval(selector, pageFunction[, arg])](https://playwright.dev/docs/api/class-elementhandle#element-handle-eval-on-selector)
+   * [elementHandle.$eval(selector, pageFunction[, arg, options])](https://playwright.dev/docs/api/class-elementhandle#element-handle-eval-on-selector)
    * would wait for the promise to resolve and return its value.
    *
    * **Usage**
@@ -12110,12 +12560,13 @@ export interface ElementHandle<T=Node> extends JSHandle<T> {
    * @param pageFunction Function to be evaluated in the page context.
    * @param arg Optional argument to pass to
    * [`pageFunction`](https://playwright.dev/docs/api/class-elementhandle#element-handle-eval-on-selector-option-expression).
+   * @param options
    */
-  $eval<R, E extends SVGElement | HTMLElement = SVGElement | HTMLElement>(selector: string, pageFunction: PageFunctionOn<E, void, R>, arg?: any): Promise<R>;
+  $eval<R, E extends SVGElement | HTMLElement = SVGElement | HTMLElement>(selector: string, pageFunction: PageFunctionOn<E, void, R>, arg?: any, options?: { world?: 'main'|'utility' }): Promise<R>;
 
   /**
    * **NOTE** In most cases,
-   * [locator.evaluateAll(pageFunction[, arg])](https://playwright.dev/docs/api/class-locator#locator-evaluate-all),
+   * [locator.evaluateAll(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-locator#locator-evaluate-all),
    * other [Locator](https://playwright.dev/docs/api/class-locator) helper methods and web-first assertions do a better
    * job.
    *
@@ -12129,7 +12580,7 @@ export interface ElementHandle<T=Node> extends JSHandle<T> {
    * If
    * [`pageFunction`](https://playwright.dev/docs/api/class-elementhandle#element-handle-eval-on-selector-all-option-expression)
    * returns a [Promise], then
-   * [elementHandle.$$eval(selector, pageFunction[, arg])](https://playwright.dev/docs/api/class-elementhandle#element-handle-eval-on-selector-all)
+   * [elementHandle.$$eval(selector, pageFunction[, arg, options])](https://playwright.dev/docs/api/class-elementhandle#element-handle-eval-on-selector-all)
    * would wait for the promise to resolve and return its value.
    *
    * **Usage**
@@ -12152,11 +12603,12 @@ export interface ElementHandle<T=Node> extends JSHandle<T> {
    * @param pageFunction Function to be evaluated in the page context.
    * @param arg Optional argument to pass to
    * [`pageFunction`](https://playwright.dev/docs/api/class-elementhandle#element-handle-eval-on-selector-all-option-expression).
+   * @param options
    */
-  $$eval<K extends keyof HTMLElementTagNameMap, R, Arg>(selector: K, pageFunction: PageFunctionOn<HTMLElementTagNameMap[K][], Arg, R>, arg: Arg): Promise<R>;
+  $$eval<K extends keyof HTMLElementTagNameMap, R, Arg>(selector: K, pageFunction: PageFunctionOn<HTMLElementTagNameMap[K][], Arg, R>, arg: Arg, options?: { world?: 'main'|'utility' }): Promise<R>;
   /**
    * **NOTE** In most cases,
-   * [locator.evaluateAll(pageFunction[, arg])](https://playwright.dev/docs/api/class-locator#locator-evaluate-all),
+   * [locator.evaluateAll(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-locator#locator-evaluate-all),
    * other [Locator](https://playwright.dev/docs/api/class-locator) helper methods and web-first assertions do a better
    * job.
    *
@@ -12170,7 +12622,7 @@ export interface ElementHandle<T=Node> extends JSHandle<T> {
    * If
    * [`pageFunction`](https://playwright.dev/docs/api/class-elementhandle#element-handle-eval-on-selector-all-option-expression)
    * returns a [Promise], then
-   * [elementHandle.$$eval(selector, pageFunction[, arg])](https://playwright.dev/docs/api/class-elementhandle#element-handle-eval-on-selector-all)
+   * [elementHandle.$$eval(selector, pageFunction[, arg, options])](https://playwright.dev/docs/api/class-elementhandle#element-handle-eval-on-selector-all)
    * would wait for the promise to resolve and return its value.
    *
    * **Usage**
@@ -12193,11 +12645,12 @@ export interface ElementHandle<T=Node> extends JSHandle<T> {
    * @param pageFunction Function to be evaluated in the page context.
    * @param arg Optional argument to pass to
    * [`pageFunction`](https://playwright.dev/docs/api/class-elementhandle#element-handle-eval-on-selector-all-option-expression).
+   * @param options
    */
-  $$eval<R, Arg, E extends SVGElement | HTMLElement = SVGElement | HTMLElement>(selector: string, pageFunction: PageFunctionOn<E[], Arg, R>, arg: Arg): Promise<R>;
+  $$eval<R, Arg, E extends SVGElement | HTMLElement = SVGElement | HTMLElement>(selector: string, pageFunction: PageFunctionOn<E[], Arg, R>, arg: Arg, options?: { world?: 'main'|'utility' }): Promise<R>;
   /**
    * **NOTE** In most cases,
-   * [locator.evaluateAll(pageFunction[, arg])](https://playwright.dev/docs/api/class-locator#locator-evaluate-all),
+   * [locator.evaluateAll(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-locator#locator-evaluate-all),
    * other [Locator](https://playwright.dev/docs/api/class-locator) helper methods and web-first assertions do a better
    * job.
    *
@@ -12211,7 +12664,7 @@ export interface ElementHandle<T=Node> extends JSHandle<T> {
    * If
    * [`pageFunction`](https://playwright.dev/docs/api/class-elementhandle#element-handle-eval-on-selector-all-option-expression)
    * returns a [Promise], then
-   * [elementHandle.$$eval(selector, pageFunction[, arg])](https://playwright.dev/docs/api/class-elementhandle#element-handle-eval-on-selector-all)
+   * [elementHandle.$$eval(selector, pageFunction[, arg, options])](https://playwright.dev/docs/api/class-elementhandle#element-handle-eval-on-selector-all)
    * would wait for the promise to resolve and return its value.
    *
    * **Usage**
@@ -12234,11 +12687,12 @@ export interface ElementHandle<T=Node> extends JSHandle<T> {
    * @param pageFunction Function to be evaluated in the page context.
    * @param arg Optional argument to pass to
    * [`pageFunction`](https://playwright.dev/docs/api/class-elementhandle#element-handle-eval-on-selector-all-option-expression).
+   * @param options
    */
-  $$eval<K extends keyof HTMLElementTagNameMap, R>(selector: K, pageFunction: PageFunctionOn<HTMLElementTagNameMap[K][], void, R>, arg?: any): Promise<R>;
+  $$eval<K extends keyof HTMLElementTagNameMap, R>(selector: K, pageFunction: PageFunctionOn<HTMLElementTagNameMap[K][], void, R>, arg?: any, options?: { world?: 'main'|'utility' }): Promise<R>;
   /**
    * **NOTE** In most cases,
-   * [locator.evaluateAll(pageFunction[, arg])](https://playwright.dev/docs/api/class-locator#locator-evaluate-all),
+   * [locator.evaluateAll(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-locator#locator-evaluate-all),
    * other [Locator](https://playwright.dev/docs/api/class-locator) helper methods and web-first assertions do a better
    * job.
    *
@@ -12252,7 +12706,7 @@ export interface ElementHandle<T=Node> extends JSHandle<T> {
    * If
    * [`pageFunction`](https://playwright.dev/docs/api/class-elementhandle#element-handle-eval-on-selector-all-option-expression)
    * returns a [Promise], then
-   * [elementHandle.$$eval(selector, pageFunction[, arg])](https://playwright.dev/docs/api/class-elementhandle#element-handle-eval-on-selector-all)
+   * [elementHandle.$$eval(selector, pageFunction[, arg, options])](https://playwright.dev/docs/api/class-elementhandle#element-handle-eval-on-selector-all)
    * would wait for the promise to resolve and return its value.
    *
    * **Usage**
@@ -12275,8 +12729,9 @@ export interface ElementHandle<T=Node> extends JSHandle<T> {
    * @param pageFunction Function to be evaluated in the page context.
    * @param arg Optional argument to pass to
    * [`pageFunction`](https://playwright.dev/docs/api/class-elementhandle#element-handle-eval-on-selector-all-option-expression).
+   * @param options
    */
-  $$eval<R, E extends SVGElement | HTMLElement = SVGElement | HTMLElement>(selector: string, pageFunction: PageFunctionOn<E[], void, R>, arg?: any): Promise<R>;
+  $$eval<R, E extends SVGElement | HTMLElement = SVGElement | HTMLElement>(selector: string, pageFunction: PageFunctionOn<E[], void, R>, arg?: any, options?: { world?: 'main'|'utility' }): Promise<R>;
 
   /**
    * **NOTE** Use web assertions that assert visibility or a locator-based
@@ -12989,10 +13444,7 @@ export interface ElementHandle<T=Node> extends JSHandle<T> {
    */
   inputValue(options?: {
     /**
-     * Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout`
-     * option in the config, or by using the
-     * [browserContext.setDefaultTimeout(timeout)](https://playwright.dev/docs/api/class-browsercontext#browser-context-set-default-timeout)
-     * or [page.setDefaultTimeout(timeout)](https://playwright.dev/docs/api/class-page#page-set-default-timeout) methods.
+     * @deprecated This option is ignored. The value is returned immediately.
      */
     timeout?: number;
   }): Promise<string>;
@@ -13179,7 +13631,8 @@ export interface ElementHandle<T=Node> extends JSHandle<T> {
     path?: string;
 
     /**
-     * The quality of the image, between 0-100. Not applicable to `png` images.
+     * The quality of the image, between 0-100. Not applicable to `png` images. For `jpeg` the default is `80`. For
+     * `webp`, a quality of `100` (the default) produces a lossless image, while lower values use lossy compression.
      */
     quality?: number;
 
@@ -13221,7 +13674,7 @@ export interface ElementHandle<T=Node> extends JSHandle<T> {
     /**
      * Specify screenshot type, defaults to `png`.
      */
-    type?: "png"|"jpeg";
+    type?: "png"|"jpeg"|"webp";
   }): Promise<Buffer>;
 
   /**
@@ -13853,7 +14306,7 @@ export interface Locator {
    * [`pageFunction`](https://playwright.dev/docs/api/class-locator#locator-evaluate-option-expression).
    * @param options
    */
-  evaluate<R, Arg, E extends SVGElement | HTMLElement = SVGElement | HTMLElement>(pageFunction: PageFunctionOn<E, Arg, R>, arg?: Arg, options?: { timeout?: number }): Promise<R>;
+  evaluate<R, Arg, E extends SVGElement | HTMLElement = SVGElement | HTMLElement>(pageFunction: PageFunctionOn<E, Arg, R>, arg?: Arg, options?: { timeout?: number, signal?: AbortSignal, exposeFunctions?: boolean, serialize?: ('Map'|'Set')[], world?: 'main'|'utility' }): Promise<R>;
   /**
    * Execute JavaScript code in the page, taking the matching element as an argument, and return a
    * [JSHandle](https://playwright.dev/docs/api/class-jshandle) with the result.
@@ -13879,14 +14332,15 @@ export interface Locator {
    * If [`pageFunction`](https://playwright.dev/docs/api/class-locator#locator-evaluate-handle-option-expression) throws
    * or rejects, this method throws.
    *
-   * See [page.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate-handle) for
-   * more details.
+   * See
+   * [page.evaluateHandle(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-page#page-evaluate-handle)
+   * for more details.
    * @param pageFunction Function to be evaluated in the page context.
    * @param arg Optional argument to pass to
    * [`pageFunction`](https://playwright.dev/docs/api/class-locator#locator-evaluate-handle-option-expression).
    * @param options
    */
-  evaluateHandle<R, Arg, E extends SVGElement | HTMLElement = SVGElement | HTMLElement>(pageFunction: PageFunctionOn<E, Arg, R>, arg?: Arg, options?: { timeout?: number }): Promise<SmartHandle<R>>;
+  evaluateHandle<R, Arg, E extends SVGElement | HTMLElement = SVGElement | HTMLElement>(pageFunction: PageFunctionOn<E, Arg, R>, arg?: Arg, options?: { timeout?: number, signal?: AbortSignal, exposeFunctions?: boolean, serialize?: ('Map'|'Set')[] }): Promise<SmartHandle<R>>;
   /**
    * Execute JavaScript code in the page, taking all matching elements as an argument.
    *
@@ -13913,8 +14367,9 @@ export interface Locator {
    * @param pageFunction Function to be evaluated in the page context.
    * @param arg Optional argument to pass to
    * [`pageFunction`](https://playwright.dev/docs/api/class-locator#locator-evaluate-all-option-expression).
+   * @param options
    */
-  evaluateAll<R, Arg, E extends SVGElement | HTMLElement = SVGElement | HTMLElement>(pageFunction: PageFunctionOn<E[], Arg, R>, arg?: Arg): Promise<R>;
+  evaluateAll<R, Arg, E extends SVGElement | HTMLElement = SVGElement | HTMLElement>(pageFunction: PageFunctionOn<E[], Arg, R>, arg?: Arg, options?: { world?: 'main'|'utility' }): Promise<R>;
   /**
    * Returns when
    * [`pageFunction`](https://playwright.dev/docs/api/class-locator#locator-wait-for-function-option-expression) returns
@@ -13963,7 +14418,7 @@ export interface Locator {
    * multiple elements match the locator, throws.
    * @param options
    */
-  elementHandle(options?: { timeout?: number }): Promise<ElementHandle<SVGElement | HTMLElement>>;
+  elementHandle(options?: { timeout?: number, signal?: AbortSignal }): Promise<ElementHandle<SVGElement | HTMLElement>>;
   /**
    * Highlight the corresponding element(s) on the screen. Useful for debugging, don't commit the code that uses
    * [locator.highlight([options])](https://playwright.dev/docs/api/class-locator#locator-highlight).
@@ -14134,6 +14589,74 @@ export interface Locator {
      */
     timeout?: number;
   }): Promise<string>;
+
+  /**
+   * Captures the aria snapshot of the given element as a free form JSON object.
+   *
+   * **Usage**
+   *
+   * ```js
+   * await page.getByRole('list').ariaSnapshotJSON();
+   * ```
+   *
+   * **Details**
+   *
+   * This method returns the same tree as
+   * [locator.ariaSnapshot([options])](https://playwright.dev/docs/api/class-locator#locator-aria-snapshot), serialized
+   * as a JSON value instead of YAML markup. The result is a list of nodes, each node being an object with the following
+   * properties:
+   * - `role` Aria role of the element, or `"text"` for a static text fragment.
+   * - `name` Accessible name of the element, if any.
+   * - `text` Text content of the element when it is the only child, or the content of a static text fragment.
+   * - `children` Child nodes and text fragments.
+   * - Boolean and value properties for element state flags: `checked`, `disabled`, `expanded`, `active`, `invalid`,
+   *   `level`, `pressed` and `selected`.
+   * - Additional element properties, for example `url` for links and `placeholder` for text boxes.
+   * - `ref` Element reference for AI-optimized snapshots.
+   * - `cursor` Set to `"pointer"` for clickable elements in AI-optimized snapshots.
+   * - `box` Bounding box of the element when
+   *   [`boxes`](https://playwright.dev/docs/api/class-locator#locator-aria-snapshot-json-option-boxes) is set.
+   * @param options
+   */
+  ariaSnapshotJSON(options?: {
+    /**
+     * When `true`, includes each element's bounding box as a `box` property with `x`, `y`, `width` and `height`.
+     * Coordinates are relative to the viewport, in CSS pixels, as returned by
+     * [`Element.getBoundingClientRect()`](https://developer.mozilla.org/en-US/docs/Web/API/Element/getBoundingClientRect).
+     * Defaults to `false`.
+     */
+    boxes?: boolean;
+
+    /**
+     * When specified, limits the depth of the snapshot.
+     */
+    depth?: number;
+
+    /**
+     * When set to `"ai"`, returns a snapshot optimized for AI consumption. Defaults to `"default"`. See details in
+     * [locator.ariaSnapshot([options])](https://playwright.dev/docs/api/class-locator#locator-aria-snapshot).
+     */
+    mode?: "ai"|"default";
+
+    /**
+     * Allows to cancel the operation using an
+     * [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the
+     * operation will be aborted and throw an error. Note that providing a signal does not disable the default timeout,
+     * which can be changed using
+     * [browserContext.setDefaultTimeout(timeout)](https://playwright.dev/docs/api/class-browsercontext#browser-context-set-default-timeout)
+     * or [page.setDefaultTimeout(timeout)](https://playwright.dev/docs/api/class-page#page-set-default-timeout); pass
+     * `timeout: 0` to disable the timeout entirely.
+     */
+    signal?: AbortSignal;
+
+    /**
+     * Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout`
+     * option in the config, or by using the
+     * [browserContext.setDefaultTimeout(timeout)](https://playwright.dev/docs/api/class-browsercontext#browser-context-set-default-timeout)
+     * or [page.setDefaultTimeout(timeout)](https://playwright.dev/docs/api/class-page#page-set-default-timeout) methods.
+     */
+    timeout?: number;
+  }): Promise<Serializable>;
 
   /**
    * Calls [blur](https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/blur) on the element.
@@ -15056,7 +15579,9 @@ export interface Locator {
     hasText?: string|RegExp;
 
     /**
-     * Only matches visible or invisible elements.
+     * Only matches visible or invisible elements. Prefer the
+     * [locator.visible()](https://playwright.dev/docs/api/class-locator#locator-visible) shortcut when matching only
+     * visible elements.
      */
     visible?: boolean;
   }): Locator;
@@ -15264,13 +15789,6 @@ export interface Locator {
    * @param options
    */
   getByRole(role: "alert"|"alertdialog"|"application"|"article"|"banner"|"blockquote"|"button"|"caption"|"cell"|"checkbox"|"code"|"columnheader"|"combobox"|"complementary"|"contentinfo"|"definition"|"deletion"|"dialog"|"directory"|"document"|"emphasis"|"feed"|"figure"|"form"|"generic"|"grid"|"gridcell"|"group"|"heading"|"img"|"insertion"|"link"|"list"|"listbox"|"listitem"|"log"|"main"|"marquee"|"math"|"meter"|"menu"|"menubar"|"menuitem"|"menuitemcheckbox"|"menuitemradio"|"navigation"|"none"|"note"|"option"|"paragraph"|"presentation"|"progressbar"|"radio"|"radiogroup"|"region"|"row"|"rowgroup"|"rowheader"|"scrollbar"|"search"|"searchbox"|"separator"|"slider"|"spinbutton"|"status"|"strong"|"subscript"|"superscript"|"switch"|"tab"|"table"|"tablist"|"tabpanel"|"term"|"textbox"|"time"|"timer"|"toolbar"|"tooltip"|"tree"|"treegrid"|"treeitem", options?: {
-    /**
-     * An attribute that is usually set by `aria-busy`.
-     *
-     * Learn more about [`aria-busy`](https://www.w3.org/TR/wai-aria-1.2/#aria-busy).
-     */
-    busy?: boolean;
-
     /**
      * An attribute that is usually set by `aria-checked` or native `<input type=checkbox>` controls.
      *
@@ -16737,6 +17255,34 @@ export interface Locator {
   }): Promise<void>;
 
   /**
+   * Returns a locator that matches only [visible](https://playwright.dev/docs/actionability#visible) elements, ignoring the invisible ones.
+   * This is the recommended way to distinguish elements by visibility, as opposed to the `:visible` CSS pseudo-class.
+   *
+   * Note that visibility is checked every time the locator is used, and not at the moment of the
+   * [locator.visible()](https://playwright.dev/docs/api/class-locator#locator-visible) call.
+   *
+   * **Usage**
+   *
+   * Consider a page with two buttons, the first invisible and the second visible.
+   *
+   * ```html
+   * <button style='display: none'>Invisible</button>
+   * <button>Visible</button>
+   * ```
+   *
+   * This will only find the second button, because it is visible, and then click it.
+   *
+   * ```js
+   * await page.locator('button').visible().click();
+   * ```
+   *
+   * To match invisible elements instead, use
+   * [locator.filter([options])](https://playwright.dev/docs/api/class-locator#locator-filter) with the
+   * [`visible`](https://playwright.dev/docs/api/class-locator#locator-filter-option-visible) option set to `false`.
+   */
+  visible(): Locator;
+
+  /**
    * Returns when element specified by locator satisfies the
    * [`state`](https://playwright.dev/docs/api/class-locator#locator-wait-for-option-state) option.
    *
@@ -17059,8 +17605,10 @@ export interface BrowserType<Unused = {}> {
      * with an exact match to the request origin that the certificate is valid for.
      *
      * Client certificate authentication is only active when at least one client certificate is provided. If you want to
-     * reject all client certificates sent by the server, you need to provide a client certificate with an `origin` that
-     * does not match any of the domains you plan to visit.
+     * reject all client certificates sent by the server for an origin you visit, set `noCertificate` to `true` for that
+     * origin instead of omitting it: omitting the origin entirely leaves the connection unintercepted, so the server's
+     * own certificate request still reaches the browser and may trigger a native certificate-selection prompt on some
+     * platforms. `noCertificate` forces interception for that origin while still presenting no client certificate.
      *
      * **NOTE** When using WebKit on macOS, accessing `localhost` will not pick up client certificates. You can make it
      * work by replacing `localhost` with `local.playwright`.
@@ -17106,6 +17654,11 @@ export interface BrowserType<Unused = {}> {
        * Passphrase for the private key (PEM or PFX).
        */
       passphrase?: string;
+
+      /**
+       * Explicitly send no client certificate for this origin. Must be the only field set besides `origin`.
+       */
+      noCertificate?: boolean;
     }>;
 
     /**
@@ -17215,6 +17768,9 @@ export interface BrowserType<Unused = {}> {
     /**
      * Credentials for [HTTP authentication](https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication). If no
      * origin is specified, the username and password are sent to any servers upon unauthorized responses.
+     *
+     * Pass an array to use different credentials for different origins. The first entry that matches the request origin
+     * is used, and entries with no origin match any request.
      */
     httpCredentials?: {
       username: string;
@@ -17234,7 +17790,25 @@ export interface BrowserType<Unused = {}> {
        * `WWW-Authenticate` header is received. Defaults to `'unauthorized'`.
        */
       send?: "unauthorized"|"always";
-    };
+    }|Array<{
+      username: string;
+
+      password: string;
+
+      /**
+       * Restrain sending http credentials on specific origin (scheme://host:port).
+       */
+      origin?: string;
+
+      /**
+       * This option only applies to the requests sent from corresponding
+       * [APIRequestContext](https://playwright.dev/docs/api/class-apirequestcontext) and does not affect requests sent from
+       * the browser. `'always'` - `Authorization` header with basic authentication credentials will be sent with the each
+       * API request. `'unauthorized` - the credentials are only sent when 401 (Unauthorized) response with
+       * `WWW-Authenticate` header is received. Defaults to `'unauthorized'`.
+       */
+      send?: "unauthorized"|"always";
+    }>;
 
     /**
      * If `true`, Playwright does not pass its own configurations args and only uses the ones from
@@ -17387,6 +17961,12 @@ export interface BrowserType<Unused = {}> {
       };
 
       /**
+       * Frame rate of the recorded videos in frames per second. Defaults to `25`. Firefox and WebKit currently capture up
+       * to 25 frames per second.
+       */
+      fps?: number;
+
+      /**
        * If specified, enables visual annotations on interacted elements during video recording.
        */
       showActions?: {
@@ -17404,6 +17984,12 @@ export interface BrowserType<Unused = {}> {
          * Font size of the action title in pixels. Defaults to `24`.
          */
         fontSize?: number;
+
+        /**
+         * Cursor decoration shown for pointer actions. `"pointer"` (the default) renders a mouse pointer that animates from
+         * the previous action point to the next one. `"none"` disables the cursor decoration.
+         */
+        cursor?: "none"|"pointer";
       };
     };
 
@@ -17454,7 +18040,7 @@ export interface BrowserType<Unused = {}> {
     strictSelectors?: boolean;
 
     /**
-     * Maximum time in milliseconds to wait for the browser instance to start. Defaults to `30000` (30 seconds). Pass `0`
+     * Maximum time in milliseconds to wait for the browser instance to start. Defaults to `180000` (3 minutes). Pass `0`
      * to disable timeout.
      */
     timeout?: number;
@@ -17653,7 +18239,7 @@ export interface BrowserType<Unused = {}> {
     };
 
     /**
-     * Maximum time in milliseconds to wait for the browser instance to start. Defaults to `30000` (30 seconds). Pass `0`
+     * Maximum time in milliseconds to wait for the browser instance to start. Defaults to `180000` (3 minutes). Pass `0`
      * to disable timeout.
      */
     timeout?: number;
@@ -17736,8 +18322,8 @@ export interface CDPSession {
    * **Usage**
    *
    * ```js
-   * session.on('event', ({ name, params }) => {
-   *   console.log(`CDP event: ${name}`, params);
+   * session.on('event', ({ method, params }) => {
+   *   console.log(`CDP event: ${method}`, params);
    * });
    * ```
    *
@@ -17786,8 +18372,8 @@ export interface CDPSession {
    * **Usage**
    *
    * ```js
-   * session.on('event', ({ name, params }) => {
-   *   console.log(`CDP event: ${name}`, params);
+   * session.on('event', ({ method, params }) => {
+   *   console.log(`CDP event: ${method}`, params);
    * });
    * ```
    *
@@ -17856,8 +18442,8 @@ export interface CDPSession {
    * **Usage**
    *
    * ```js
-   * session.on('event', ({ name, params }) => {
-   *   console.log(`CDP event: ${name}`, params);
+   * session.on('event', ({ method, params }) => {
+   *   console.log(`CDP event: ${method}`, params);
    * });
    * ```
    *
@@ -18119,11 +18705,7 @@ export interface Screencast {
       height: number;
     };
     quality?: number;
-    annotate?: {
-      duration?: number;
-      position?: 'top-left' | 'top' | 'top-right' | 'bottom-left' | 'bottom' | 'bottom-right';
-      fontSize?: number;
-    };
+    fps?: number;
   }): Promise<Disposable>;
   /**
    * Removes action decorations.
@@ -18761,8 +19343,10 @@ export interface APIRequest {
      * with an exact match to the request origin that the certificate is valid for.
      *
      * Client certificate authentication is only active when at least one client certificate is provided. If you want to
-     * reject all client certificates sent by the server, you need to provide a client certificate with an `origin` that
-     * does not match any of the domains you plan to visit.
+     * reject all client certificates sent by the server for an origin you visit, set `noCertificate` to `true` for that
+     * origin instead of omitting it: omitting the origin entirely leaves the connection unintercepted, so the server's
+     * own certificate request still reaches the browser and may trigger a native certificate-selection prompt on some
+     * platforms. `noCertificate` forces interception for that origin while still presenting no client certificate.
      *
      * **NOTE** When using WebKit on macOS, accessing `localhost` will not pick up client certificates. You can make it
      * work by replacing `localhost` with `local.playwright`.
@@ -18808,6 +19392,11 @@ export interface APIRequest {
        * Passphrase for the private key (PEM or PFX).
        */
       passphrase?: string;
+
+      /**
+       * Explicitly send no client certificate for this origin. Must be the only field set besides `origin`.
+       */
+      noCertificate?: boolean;
     }>;
 
     /**
@@ -18824,6 +19413,9 @@ export interface APIRequest {
     /**
      * Credentials for [HTTP authentication](https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication). If no
      * origin is specified, the username and password are sent to any servers upon unauthorized responses.
+     *
+     * Pass an array to use different credentials for different origins. The first entry that matches the request origin
+     * is used, and entries with no origin match any request.
      */
     httpCredentials?: {
       username: string;
@@ -18843,7 +19435,25 @@ export interface APIRequest {
        * `WWW-Authenticate` header is received. Defaults to `'unauthorized'`.
        */
       send?: "unauthorized"|"always";
-    };
+    }|Array<{
+      username: string;
+
+      password: string;
+
+      /**
+       * Restrain sending http credentials on specific origin (scheme://host:port).
+       */
+      origin?: string;
+
+      /**
+       * This option only applies to the requests sent from corresponding
+       * [APIRequestContext](https://playwright.dev/docs/api/class-apirequestcontext) and does not affect requests sent from
+       * the browser. `'always'` - `Authorization` header with basic authentication credentials will be sent with the each
+       * API request. `'unauthorized` - the credentials are only sent when 401 (Unauthorized) response with
+       * `WWW-Authenticate` header is received. Defaults to `'unauthorized'`.
+       */
+      send?: "unauthorized"|"always";
+    }>;
 
     /**
      * Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
@@ -18974,7 +19584,7 @@ export interface APIRequestContext {
    * @param url Target URL.
    * @param options
    */
-  delete(url: string, options?: {
+  delete<T = any>(url: string, options?: {
     /**
      * Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string
      * and `content-type` header will be set to `application/json` if not explicitly set. Otherwise the `content-type`
@@ -19048,10 +19658,21 @@ export interface APIRequestContext {
     params?: { [key: string]: string|number|boolean; }|URLSearchParams|string;
 
     /**
+     * Allows to cancel the operation using an
+     * [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the
+     * operation will be aborted and throw an error. Note that providing a signal does not disable the default timeout,
+     * which can be changed using
+     * [browserContext.setDefaultTimeout(timeout)](https://playwright.dev/docs/api/class-browsercontext#browser-context-set-default-timeout)
+     * or [page.setDefaultTimeout(timeout)](https://playwright.dev/docs/api/class-page#page-set-default-timeout); pass
+     * `timeout: 0` to disable the timeout entirely.
+     */
+    signal?: AbortSignal;
+
+    /**
      * Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
      */
     timeout?: number;
-  }): Promise<APIResponse>;
+  }): Promise<APIResponse<T>>;
 
   /**
    * All responses returned by
@@ -19105,7 +19726,7 @@ export interface APIRequestContext {
    * @param urlOrRequest Target URL or Request to get all parameters from.
    * @param options
    */
-  fetch(urlOrRequest: string|Request, options?: {
+  fetch<T = any>(urlOrRequest: string|Request, options?: {
     /**
      * Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string
      * and `content-type` header will be set to `application/json` if not explicitly set. Otherwise the `content-type`
@@ -19185,10 +19806,21 @@ export interface APIRequestContext {
     params?: { [key: string]: string|number|boolean; }|URLSearchParams|string;
 
     /**
+     * Allows to cancel the operation using an
+     * [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the
+     * operation will be aborted and throw an error. Note that providing a signal does not disable the default timeout,
+     * which can be changed using
+     * [browserContext.setDefaultTimeout(timeout)](https://playwright.dev/docs/api/class-browsercontext#browser-context-set-default-timeout)
+     * or [page.setDefaultTimeout(timeout)](https://playwright.dev/docs/api/class-page#page-set-default-timeout); pass
+     * `timeout: 0` to disable the timeout entirely.
+     */
+    signal?: AbortSignal;
+
+    /**
      * Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
      */
     timeout?: number;
-  }): Promise<APIResponse>;
+  }): Promise<APIResponse<T>>;
 
   /**
    * Sends HTTP(S) [GET](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/GET) request and returns its
@@ -19223,7 +19855,7 @@ export interface APIRequestContext {
    * @param url Target URL.
    * @param options
    */
-  get(url: string, options?: {
+  get<T = any>(url: string, options?: {
     /**
      * Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string
      * and `content-type` header will be set to `application/json` if not explicitly set. Otherwise the `content-type`
@@ -19297,10 +19929,21 @@ export interface APIRequestContext {
     params?: { [key: string]: string|number|boolean; }|URLSearchParams|string;
 
     /**
+     * Allows to cancel the operation using an
+     * [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the
+     * operation will be aborted and throw an error. Note that providing a signal does not disable the default timeout,
+     * which can be changed using
+     * [browserContext.setDefaultTimeout(timeout)](https://playwright.dev/docs/api/class-browsercontext#browser-context-set-default-timeout)
+     * or [page.setDefaultTimeout(timeout)](https://playwright.dev/docs/api/class-page#page-set-default-timeout); pass
+     * `timeout: 0` to disable the timeout entirely.
+     */
+    signal?: AbortSignal;
+
+    /**
      * Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
      */
     timeout?: number;
-  }): Promise<APIResponse>;
+  }): Promise<APIResponse<T>>;
 
   /**
    * Sends HTTP(S) [HEAD](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/HEAD) request and returns its
@@ -19309,7 +19952,7 @@ export interface APIRequestContext {
    * @param url Target URL.
    * @param options
    */
-  head(url: string, options?: {
+  head<T = any>(url: string, options?: {
     /**
      * Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string
      * and `content-type` header will be set to `application/json` if not explicitly set. Otherwise the `content-type`
@@ -19383,10 +20026,21 @@ export interface APIRequestContext {
     params?: { [key: string]: string|number|boolean; }|URLSearchParams|string;
 
     /**
+     * Allows to cancel the operation using an
+     * [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the
+     * operation will be aborted and throw an error. Note that providing a signal does not disable the default timeout,
+     * which can be changed using
+     * [browserContext.setDefaultTimeout(timeout)](https://playwright.dev/docs/api/class-browsercontext#browser-context-set-default-timeout)
+     * or [page.setDefaultTimeout(timeout)](https://playwright.dev/docs/api/class-page#page-set-default-timeout); pass
+     * `timeout: 0` to disable the timeout entirely.
+     */
+    signal?: AbortSignal;
+
+    /**
      * Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
      */
     timeout?: number;
-  }): Promise<APIResponse>;
+  }): Promise<APIResponse<T>>;
 
   /**
    * Sends HTTP(S) [PATCH](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/PATCH) request and returns its
@@ -19395,7 +20049,7 @@ export interface APIRequestContext {
    * @param url Target URL.
    * @param options
    */
-  patch(url: string, options?: {
+  patch<T = any>(url: string, options?: {
     /**
      * Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string
      * and `content-type` header will be set to `application/json` if not explicitly set. Otherwise the `content-type`
@@ -19469,10 +20123,21 @@ export interface APIRequestContext {
     params?: { [key: string]: string|number|boolean; }|URLSearchParams|string;
 
     /**
+     * Allows to cancel the operation using an
+     * [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the
+     * operation will be aborted and throw an error. Note that providing a signal does not disable the default timeout,
+     * which can be changed using
+     * [browserContext.setDefaultTimeout(timeout)](https://playwright.dev/docs/api/class-browsercontext#browser-context-set-default-timeout)
+     * or [page.setDefaultTimeout(timeout)](https://playwright.dev/docs/api/class-page#page-set-default-timeout); pass
+     * `timeout: 0` to disable the timeout entirely.
+     */
+    signal?: AbortSignal;
+
+    /**
      * Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
      */
     timeout?: number;
-  }): Promise<APIResponse>;
+  }): Promise<APIResponse<T>>;
 
   /**
    * Sends HTTP(S) [POST](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/POST) request and returns its
@@ -19523,7 +20188,7 @@ export interface APIRequestContext {
    * @param url Target URL.
    * @param options
    */
-  post(url: string, options?: {
+  post<T = any>(url: string, options?: {
     /**
      * Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string
      * and `content-type` header will be set to `application/json` if not explicitly set. Otherwise the `content-type`
@@ -19597,10 +20262,21 @@ export interface APIRequestContext {
     params?: { [key: string]: string|number|boolean; }|URLSearchParams|string;
 
     /**
+     * Allows to cancel the operation using an
+     * [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the
+     * operation will be aborted and throw an error. Note that providing a signal does not disable the default timeout,
+     * which can be changed using
+     * [browserContext.setDefaultTimeout(timeout)](https://playwright.dev/docs/api/class-browsercontext#browser-context-set-default-timeout)
+     * or [page.setDefaultTimeout(timeout)](https://playwright.dev/docs/api/class-page#page-set-default-timeout); pass
+     * `timeout: 0` to disable the timeout entirely.
+     */
+    signal?: AbortSignal;
+
+    /**
      * Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
      */
     timeout?: number;
-  }): Promise<APIResponse>;
+  }): Promise<APIResponse<T>>;
 
   /**
    * Sends HTTP(S) [PUT](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/PUT) request and returns its
@@ -19609,7 +20285,7 @@ export interface APIRequestContext {
    * @param url Target URL.
    * @param options
    */
-  put(url: string, options?: {
+  put<T = any>(url: string, options?: {
     /**
      * Allows to set post data of the request. If the data parameter is an object, it will be serialized to json string
      * and `content-type` header will be set to `application/json` if not explicitly set. Otherwise the `content-type`
@@ -19683,10 +20359,21 @@ export interface APIRequestContext {
     params?: { [key: string]: string|number|boolean; }|URLSearchParams|string;
 
     /**
+     * Allows to cancel the operation using an
+     * [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the
+     * operation will be aborted and throw an error. Note that providing a signal does not disable the default timeout,
+     * which can be changed using
+     * [browserContext.setDefaultTimeout(timeout)](https://playwright.dev/docs/api/class-browsercontext#browser-context-set-default-timeout)
+     * or [page.setDefaultTimeout(timeout)](https://playwright.dev/docs/api/class-page#page-set-default-timeout); pass
+     * `timeout: 0` to disable the timeout entirely.
+     */
+    signal?: AbortSignal;
+
+    /**
      * Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
      */
     timeout?: number;
-  }): Promise<APIResponse>;
+  }): Promise<APIResponse<T>>;
 
   /**
    * Returns storage state for this request context, contains current cookies and local storage snapshot if it was
@@ -19698,6 +20385,11 @@ export interface APIRequestContext {
      * Set to `true` to include IndexedDB in the storage state snapshot.
      */
     indexedDB?: boolean;
+
+    /**
+     * Set to `true` to include the origin private file system in the storage state snapshot.
+     */
+    opfs?: boolean;
 
     /**
      * The file path to save the storage state to. If
@@ -19739,125 +20431,10 @@ export interface APIRequestContext {
     }>;
   }>;
 
+  /**
+   * Tracing recorder for requests made through this API request context.
+   */
   tracing: Tracing;
-
-  [Symbol.asyncDispose](): Promise<void>;
-}
-
-/**
- * [APIResponse](https://playwright.dev/docs/api/class-apiresponse) class represents responses returned by
- * [apiRequestContext.get(url[, options])](https://playwright.dev/docs/api/class-apirequestcontext#api-request-context-get)
- * and similar methods.
- */
-export interface APIResponse {
-  /**
-   * Returns the buffer with response body.
-   */
-  body(): Promise<Buffer>;
-
-  /**
-   * Disposes the body of this response. If not called then the body will stay in memory until the context closes.
-   */
-  dispose(): Promise<void>;
-
-  /**
-   * An object with all the response HTTP headers associated with this response.
-   */
-  headers(): { [key: string]: string; };
-
-  /**
-   * An array with all the response HTTP headers associated with this response. Header names are not lower-cased.
-   * Headers with multiple entries, such as `Set-Cookie`, appear in the array multiple times.
-   */
-  headersArray(): Array<{
-    /**
-     * Name of the header.
-     */
-    name: string;
-
-    /**
-     * Value of the header.
-     */
-    value: string;
-  }>;
-
-  /**
-   * Returns the JSON representation of response body.
-   *
-   * This method will throw if the response body is not parsable via `JSON.parse`.
-   */
-  json(): Promise<Serializable>;
-
-  /**
-   * Contains a boolean stating whether the response was successful (status in the range 200-299) or not.
-   */
-  ok(): boolean;
-
-  /**
-   * Returns SSL and other security information. Resolves to `null` for non-HTTPS responses. For redirected requests,
-   * returns the information for the last request in the redirect chain.
-   */
-  securityDetails(): Promise<null|{
-    /**
-     * Common Name component of the Issuer field. from the certificate. This should only be used for informational
-     * purposes. Optional.
-     */
-    issuer?: string;
-
-    /**
-     * The specific TLS protocol used. (e.g. `TLS 1.3`). Optional.
-     */
-    protocol?: string;
-
-    /**
-     * Common Name component of the Subject field from the certificate. This should only be used for informational
-     * purposes. Optional.
-     */
-    subjectName?: string;
-
-    /**
-     * Unix timestamp (in seconds) specifying when this cert becomes valid. Optional.
-     */
-    validFrom?: number;
-
-    /**
-     * Unix timestamp (in seconds) specifying when this cert becomes invalid. Optional.
-     */
-    validTo?: number;
-  }>;
-
-  /**
-   * Returns the IP address and port of the server. Resolves to `null` if the server address is not available. For
-   * redirected requests, returns the information for the last request in the redirect chain.
-   */
-  serverAddr(): Promise<null|{
-    /**
-     * IPv4 or IPV6 address of the server.
-     */
-    ipAddress: string;
-
-    port: number;
-  }>;
-
-  /**
-   * Contains the status code of the response (e.g., 200 for a success).
-   */
-  status(): number;
-
-  /**
-   * Contains the status text of the response (e.g. usually an "OK" for a success).
-   */
-  statusText(): string;
-
-  /**
-   * Returns the text representation of response body.
-   */
-  text(): Promise<string>;
-
-  /**
-   * Contains the URL of the response.
-   */
-  url(): string;
 
   [Symbol.asyncDispose](): Promise<void>;
 }
@@ -20344,7 +20921,7 @@ export interface Coverage {
  *
  * **Usage: save credentials in the storage state, restore later**
  *
- * See [authentication guide](https://playwright.dev/docs/auth) for examples of using saving and resotring the storage state.
+ * See [authentication guide](https://playwright.dev/docs/auth) for examples of using saving and restoring the storage state.
  *
  * **Defaults**
  */
@@ -20628,14 +21205,15 @@ export interface Dialog {
 /**
  * [Disposable](https://playwright.dev/docs/api/class-disposable) is returned from various methods to allow undoing
  * the corresponding action. For example,
- * [page.addInitScript(script[, arg])](https://playwright.dev/docs/api/class-page#page-add-init-script) returns a
- * [Disposable](https://playwright.dev/docs/api/class-disposable) that can be used to remove the init script.
+ * [page.addInitScript(script[, arg, options])](https://playwright.dev/docs/api/class-page#page-add-init-script)
+ * returns a [Disposable](https://playwright.dev/docs/api/class-disposable) that can be used to remove the init
+ * script.
  */
 export interface Disposable {
   /**
    * Removes the associated resource. For example, removes the init script installed via
-   * [page.addInitScript(script[, arg])](https://playwright.dev/docs/api/class-page#page-add-init-script) or
-   * [browserContext.addInitScript(script[, arg])](https://playwright.dev/docs/api/class-browsercontext#browser-context-add-init-script).
+   * [page.addInitScript(script[, arg, options])](https://playwright.dev/docs/api/class-page#page-add-init-script) or
+   * [browserContext.addInitScript(script[, arg, options])](https://playwright.dev/docs/api/class-browsercontext#browser-context-add-init-script).
    */
   dispose(): Promise<void>;
 
@@ -20827,7 +21405,7 @@ export interface FileChooser {
  * FrameLocator represents a view to the `iframe` on the page. It captures the logic sufficient to retrieve the
  * `iframe` and locate elements in that iframe. FrameLocator can be created with either
  * [locator.contentFrame()](https://playwright.dev/docs/api/class-locator#locator-content-frame),
- * [page.frameLocator(selector)](https://playwright.dev/docs/api/class-page#page-frame-locator) or
+ * [page.frameLocator([selector])](https://playwright.dev/docs/api/class-page#page-frame-locator) or
  * [locator.frameLocator(selector)](https://playwright.dev/docs/api/class-locator#locator-frame-locator) method.
  *
  * ```js
@@ -20847,6 +21425,32 @@ export interface FileChooser {
  * // Works because we explicitly tell locator to pick the first frame:
  * await page.locator('.result-frame').contentFrame().first().getByRole('button').click();
  * ```
+ *
+ * **Any frame**
+ *
+ * Calling [page.frameLocator([selector])](https://playwright.dev/docs/api/class-page#page-frame-locator) or
+ * [frame.frameLocator([selector])](https://playwright.dev/docs/api/class-frame#frame-frame-locator) without a
+ * selector creates a frame locator that starts the search in any frame of the subtree - so that you don't need to
+ * locate the iframe first.
+ *
+ * ```js
+ * // Finds the button in any frame on the page:
+ * await page.frameLocator().getByRole('button').click();
+ *
+ * // Finds the iframe with id "my-frame" anywhere on the page, and clicks the button inside it:
+ * await page.frameLocator().locator('#my-frame').contentFrame().getByRole('button').click();
+ * ```
+ *
+ * Only the start of the search is affected - the rest of the locator is resolved inside a single frame, just like any
+ * other locator. Following the strictness rules above, an error is thrown when elements are matched in multiple
+ * frames.
+ *
+ * Such a frame locator does not point to a particular `iframe`, so
+ * [frameLocator.owner()](https://playwright.dev/docs/api/class-framelocator#frame-locator-owner),
+ * [frameLocator.first()](https://playwright.dev/docs/api/class-framelocator#frame-locator-first),
+ * [frameLocator.last()](https://playwright.dev/docs/api/class-framelocator#frame-locator-last) and
+ * [frameLocator.nth(index)](https://playwright.dev/docs/api/class-framelocator#frame-locator-nth) are not supported
+ * on it.
  *
  * **Converting Locator to FrameLocator**
  *
@@ -21002,13 +21606,6 @@ export interface FrameLocator {
    * @param options
    */
   getByRole(role: "alert"|"alertdialog"|"application"|"article"|"banner"|"blockquote"|"button"|"caption"|"cell"|"checkbox"|"code"|"columnheader"|"combobox"|"complementary"|"contentinfo"|"definition"|"deletion"|"dialog"|"directory"|"document"|"emphasis"|"feed"|"figure"|"form"|"generic"|"grid"|"gridcell"|"group"|"heading"|"img"|"insertion"|"link"|"list"|"listbox"|"listitem"|"log"|"main"|"marquee"|"math"|"meter"|"menu"|"menubar"|"menuitem"|"menuitemcheckbox"|"menuitemradio"|"navigation"|"none"|"note"|"option"|"paragraph"|"presentation"|"progressbar"|"radio"|"radiogroup"|"region"|"row"|"rowgroup"|"rowheader"|"scrollbar"|"search"|"searchbox"|"separator"|"slider"|"spinbutton"|"status"|"strong"|"subscript"|"superscript"|"switch"|"tab"|"table"|"tablist"|"tabpanel"|"term"|"textbox"|"time"|"timer"|"toolbar"|"tooltip"|"tree"|"treegrid"|"treeitem", options?: {
-    /**
-     * An attribute that is usually set by `aria-busy`.
-     *
-     * Learn more about [`aria-busy`](https://www.w3.org/TR/wai-aria-1.2/#aria-busy).
-     */
-    busy?: boolean;
-
     /**
      * An attribute that is usually set by `aria-checked` or native `<input type=checkbox>` controls.
      *
@@ -21944,49 +22541,49 @@ export interface Request {
     startTime: number;
 
     /**
-     * Time immediately before the browser starts the domain name lookup for the resource. The value is given in
+     * Time immediately before the client starts the domain name lookup for the resource. The value is given in
      * milliseconds relative to `startTime`, -1 if not available.
      */
     domainLookupStart: number;
 
     /**
-     * Time immediately after the browser starts the domain name lookup for the resource. The value is given in
-     * milliseconds relative to `startTime`, -1 if not available.
+     * Time immediately after the client ends the domain name lookup for the resource. The value is given in milliseconds
+     * relative to `startTime`, -1 if not available.
      */
     domainLookupEnd: number;
 
     /**
-     * Time immediately before the user agent starts establishing the connection to the server to retrieve the resource.
-     * The value is given in milliseconds relative to `startTime`, -1 if not available.
+     * Time immediately before the client starts establishing the connection to the server to retrieve the resource. The
+     * value is given in milliseconds relative to `startTime`, -1 if not available.
      */
     connectStart: number;
 
     /**
-     * Time immediately before the browser starts the handshake process to secure the current connection. The value is
+     * Time immediately before the client starts the handshake process to secure the current connection. The value is
      * given in milliseconds relative to `startTime`, -1 if not available.
      */
     secureConnectionStart: number;
 
     /**
-     * Time immediately before the user agent starts establishing the connection to the server to retrieve the resource.
-     * The value is given in milliseconds relative to `startTime`, -1 if not available.
+     * Time immediately after the client establishes the connection to the server to retrieve the resource. The value is
+     * given in milliseconds relative to `startTime`, -1 if not available.
      */
     connectEnd: number;
 
     /**
-     * Time immediately before the browser starts requesting the resource from the server, cache, or local resource. The
+     * Time immediately before the client starts requesting the resource from the server, cache, or local resource. The
      * value is given in milliseconds relative to `startTime`, -1 if not available.
      */
     requestStart: number;
 
     /**
-     * Time immediately after the browser receives the first byte of the response from the server, cache, or local
+     * Time immediately after the client receives the first byte of the response from the server, cache, or local
      * resource. The value is given in milliseconds relative to `startTime`, -1 if not available.
      */
     responseStart: number;
 
     /**
-     * Time immediately after the browser receives the last byte of the resource or immediately before the transport
+     * Time immediately after the client receives the last byte of the resource or immediately before the transport
      * connection is closed, whichever comes first. The value is given in milliseconds relative to `startTime`, -1 if not
      * available.
      */
@@ -22367,7 +22964,7 @@ export interface Route {
    * instead.
    * @param options
    */
-  fetch(options?: {
+  fetch<T = any>(options?: {
     /**
      * If set changes the request HTTP headers. Header values will be converted to a string.
      */
@@ -22398,6 +22995,17 @@ export interface Route {
     postData?: string|Buffer|Serializable;
 
     /**
+     * Allows to cancel the operation using an
+     * [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal). If the signal is aborted, the
+     * operation will be aborted and throw an error. Note that providing a signal does not disable the default timeout,
+     * which can be changed using
+     * [browserContext.setDefaultTimeout(timeout)](https://playwright.dev/docs/api/class-browsercontext#browser-context-set-default-timeout)
+     * or [page.setDefaultTimeout(timeout)](https://playwright.dev/docs/api/class-page#page-set-default-timeout); pass
+     * `timeout: 0` to disable the timeout entirely.
+     */
+    signal?: AbortSignal;
+
+    /**
      * Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
      */
     timeout?: number;
@@ -22406,7 +23014,7 @@ export interface Route {
      * If set changes the request URL. New URL must have same protocol as original one.
      */
     url?: string;
-  }): Promise<APIResponse>;
+  }): Promise<APIResponse<T>>;
 
   /**
    * Fulfills route's request with given response.
@@ -22674,6 +23282,16 @@ export interface Tracing {
    */
   start(options?: {
     /**
+     * Whether to collect code coverage from istanbul-instrumented application code. Build the application with an
+     * istanbul instrumentation plugin, for example
+     * [`vite-plugin-istanbul`](https://www.npmjs.com/package/vite-plugin-istanbul) or
+     * [`babel-plugin-istanbul`](https://www.npmjs.com/package/babel-plugin-istanbul), so that pages expose the
+     * `window.__coverage__` object. Playwright collects accumulated counters from all pages and frames, including right
+     * before navigations and page closes, and stores them in istanbul format inside the trace file.
+     */
+    coverage?: boolean;
+
+    /**
      * When enabled, the trace is written to an unarchived file that is updated in real time as actions occur, instead of
      * caching changes and archiving them into a zip file at the end. This is useful for live trace viewing during test
      * execution.
@@ -22696,11 +23314,24 @@ export interface Tracing {
     screenshots?: boolean;
 
     /**
-     * If this option is true tracing will
-     * - capture DOM snapshot on every action
-     * - record network activity
+     * Which snapshots to capture on every action. Passing `true` is a shortcut for `{ dom: true }`.
      */
-    snapshots?: boolean;
+    snapshots?: boolean|{
+      /**
+       * Capture DOM snapshot on every action and record network activity. Optional.
+       */
+      dom?: boolean;
+
+      /**
+       * Capture aria snapshot of the page on every action. Optional.
+       */
+      aria?: boolean;
+
+      /**
+       * Capture a screenshot of the page on every action. Optional.
+       */
+      screen?: boolean;
+    };
 
     /**
      * Whether to include source files for trace actions.
@@ -22763,8 +23394,8 @@ export interface Tracing {
    * [tracing.stopHar()](https://playwright.dev/docs/api/class-tracing#tracing-stop-har) is called, or when the returned
    * [Disposable](https://playwright.dev/docs/api/class-disposable) is disposed.
    *
-   * Only one HAR recording can be active at a time per
-   * [BrowserContext](https://playwright.dev/docs/api/class-browsercontext).
+   * Only one HAR recording can be active at a time per [Tracing](https://playwright.dev/docs/api/class-tracing)
+   * instance.
    *
    * **Usage**
    *
@@ -23383,6 +24014,9 @@ export interface Electron {
     /**
      * Credentials for [HTTP authentication](https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication). If no
      * origin is specified, the username and password are sent to any servers upon unauthorized responses.
+     *
+     * Pass an array to use different credentials for different origins. The first entry that matches the request origin
+     * is used, and entries with no origin match any request.
      */
     httpCredentials?: {
       username: string;
@@ -23402,7 +24036,25 @@ export interface Electron {
        * `WWW-Authenticate` header is received. Defaults to `'unauthorized'`.
        */
       send?: "unauthorized"|"always";
-    };
+    }|Array<{
+      username: string;
+
+      password: string;
+
+      /**
+       * Restrain sending http credentials on specific origin (scheme://host:port).
+       */
+      origin?: string;
+
+      /**
+       * This option only applies to the requests sent from corresponding
+       * [APIRequestContext](https://playwright.dev/docs/api/class-apirequestcontext) and does not affect requests sent from
+       * the browser. `'always'` - `Authorization` header with basic authentication credentials will be sent with the each
+       * API request. `'unauthorized` - the credentials are only sent when 401 (Unauthorized) response with
+       * `WWW-Authenticate` header is received. Defaults to `'unauthorized'`.
+       */
+      send?: "unauthorized"|"always";
+    }>;
 
     /**
      * Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
@@ -23495,6 +24147,12 @@ export interface Electron {
       };
 
       /**
+       * Frame rate of the recorded videos in frames per second. Defaults to `25`. Firefox and WebKit currently capture up
+       * to 25 frames per second.
+       */
+      fps?: number;
+
+      /**
        * If specified, enables visual annotations on interacted elements during video recording.
        */
       showActions?: {
@@ -23512,6 +24170,12 @@ export interface Electron {
          * Font size of the action title in pixels. Defaults to `24`.
          */
         fontSize?: number;
+
+        /**
+         * Cursor decoration shown for pointer actions. `"pointer"` (the default) renders a mouse pointer that animates from
+         * the previous action point to the next one. `"none"` disables the cursor decoration.
+         */
+        cursor?: "none"|"pointer";
       };
     };
 
@@ -24014,6 +24678,9 @@ export interface AndroidDevice {
     /**
      * Credentials for [HTTP authentication](https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication). If no
      * origin is specified, the username and password are sent to any servers upon unauthorized responses.
+     *
+     * Pass an array to use different credentials for different origins. The first entry that matches the request origin
+     * is used, and entries with no origin match any request.
      */
     httpCredentials?: {
       username: string;
@@ -24033,7 +24700,25 @@ export interface AndroidDevice {
        * `WWW-Authenticate` header is received. Defaults to `'unauthorized'`.
        */
       send?: "unauthorized"|"always";
-    };
+    }|Array<{
+      username: string;
+
+      password: string;
+
+      /**
+       * Restrain sending http credentials on specific origin (scheme://host:port).
+       */
+      origin?: string;
+
+      /**
+       * This option only applies to the requests sent from corresponding
+       * [APIRequestContext](https://playwright.dev/docs/api/class-apirequestcontext) and does not affect requests sent from
+       * the browser. `'always'` - `Authorization` header with basic authentication credentials will be sent with the each
+       * API request. `'unauthorized` - the credentials are only sent when 401 (Unauthorized) response with
+       * `WWW-Authenticate` header is received. Defaults to `'unauthorized'`.
+       */
+      send?: "unauthorized"|"always";
+    }>;
 
     /**
      * Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
@@ -24183,6 +24868,12 @@ export interface AndroidDevice {
       };
 
       /**
+       * Frame rate of the recorded videos in frames per second. Defaults to `25`. Firefox and WebKit currently capture up
+       * to 25 frames per second.
+       */
+      fps?: number;
+
+      /**
        * If specified, enables visual annotations on interacted elements during video recording.
        */
       showActions?: {
@@ -24200,6 +24891,12 @@ export interface AndroidDevice {
          * Font size of the action title in pixels. Defaults to `24`.
          */
         fontSize?: number;
+
+        /**
+         * Cursor decoration shown for pointer actions. `"pointer"` (the default) renders a mouse pointer that animates from
+         * the previous action point to the next one. `"none"` disables the cursor decoration.
+         */
+        cursor?: "none"|"pointer";
       };
     };
 
@@ -24880,7 +25577,7 @@ export interface LaunchOptions {
   slowMo?: number;
 
   /**
-   * Maximum time in milliseconds to wait for the browser instance to start. Defaults to `30000` (30 seconds). Pass `0`
+   * Maximum time in milliseconds to wait for the browser instance to start. Defaults to `180000` (3 minutes). Pass `0`
    * to disable timeout.
    */
   timeout?: number;
@@ -25023,7 +25720,8 @@ export interface LocatorScreenshotOptions {
   path?: string;
 
   /**
-   * The quality of the image, between 0-100. Not applicable to `png` images.
+   * The quality of the image, between 0-100. Not applicable to `png` images. For `jpeg` the default is `80`. For
+   * `webp`, a quality of `100` (the default) produces a lossless image, while lower values use lossy compression.
    */
   quality?: number;
 
@@ -25065,7 +25763,7 @@ export interface LocatorScreenshotOptions {
   /**
    * Specify screenshot type, defaults to `png`.
    */
-  type?: "png"|"jpeg";
+  type?: "png"|"jpeg"|"webp";
 }
 
 interface ElementHandleWaitForSelectorOptions {
@@ -25146,8 +25844,10 @@ export interface BrowserContextOptions {
    * with an exact match to the request origin that the certificate is valid for.
    *
    * Client certificate authentication is only active when at least one client certificate is provided. If you want to
-   * reject all client certificates sent by the server, you need to provide a client certificate with an `origin` that
-   * does not match any of the domains you plan to visit.
+   * reject all client certificates sent by the server for an origin you visit, set `noCertificate` to `true` for that
+   * origin instead of omitting it: omitting the origin entirely leaves the connection unintercepted, so the server's
+   * own certificate request still reaches the browser and may trigger a native certificate-selection prompt on some
+   * platforms. `noCertificate` forces interception for that origin while still presenting no client certificate.
    *
    * **NOTE** When using WebKit on macOS, accessing `localhost` will not pick up client certificates. You can make it
    * work by replacing `localhost` with `local.playwright`.
@@ -25193,6 +25893,11 @@ export interface BrowserContextOptions {
      * Passphrase for the private key (PEM or PFX).
      */
     passphrase?: string;
+
+    /**
+     * Explicitly send no client certificate for this origin. Must be the only field set besides `origin`.
+     */
+    noCertificate?: boolean;
   }>;
 
   /**
@@ -25239,8 +25944,11 @@ export interface BrowserContextOptions {
   /**
    * Credentials for [HTTP authentication](https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication). If no
    * origin is specified, the username and password are sent to any servers upon unauthorized responses.
+   *
+   * Pass an array to use different credentials for different origins. The first entry that matches the request origin
+   * is used, and entries with no origin match any request.
    */
-  httpCredentials?: HTTPCredentials;
+  httpCredentials?: HTTPCredentials|Array<HTTPCredentials>;
 
   /**
    * Whether to ignore HTTPS errors when sending network requests. Defaults to `false`.
@@ -25385,6 +26093,12 @@ export interface BrowserContextOptions {
     };
 
     /**
+     * Frame rate of the recorded videos in frames per second. Defaults to `25`. Firefox and WebKit currently capture up
+     * to 25 frames per second.
+     */
+    fps?: number;
+
+    /**
      * If specified, enables visual annotations on interacted elements during video recording.
      */
     showActions?: {
@@ -25402,6 +26116,12 @@ export interface BrowserContextOptions {
        * Font size of the action title in pixels. Defaults to `24`.
        */
       fontSize?: number;
+
+      /**
+       * Cursor decoration shown for pointer actions. `"pointer"` (the default) renders a mouse pointer that animates from
+       * the previous action point to the next one. `"none"` disables the cursor decoration.
+       */
+      cursor?: "none"|"pointer";
     };
   };
 
@@ -25740,7 +26460,8 @@ export interface PageScreenshotOptions {
   path?: string;
 
   /**
-   * The quality of the image, between 0-100. Not applicable to `png` images.
+   * The quality of the image, between 0-100. Not applicable to `png` images. For `jpeg` the default is `80`. For
+   * `webp`, a quality of `100` (the default) produces a lossless image, while lower values use lossy compression.
    */
   quality?: number;
 
@@ -25782,7 +26503,7 @@ export interface PageScreenshotOptions {
   /**
    * Specify screenshot type, defaults to `png`.
    */
-  type?: "png"|"jpeg";
+  type?: "png"|"jpeg"|"webp";
 }
 
 type Devices = {

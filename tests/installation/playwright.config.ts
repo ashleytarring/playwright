@@ -23,8 +23,8 @@ loadEnv({ path: path.join(__dirname, '..', '..', '.env'), quiet: true });
 const reporters = () => {
   const result: ReporterDescription[] = process.env.CI ? [
     ['dot'],
-    ['json', { outputFile: path.join(outputDir, 'report.json') }],
     ['blob'],
+    ['../config/parquetReporter.ts'],
   ] : [
     ['list'],
     ['html', { open: 'on-failure' }]

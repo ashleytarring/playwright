@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-import { renderTitleForCall } from '@isomorphic/protocolFormatter';
+import { renderFullTitleForCall } from '@isomorphic/protocolFormatter';
 import { deserializeURLMatch, urlMatches } from '@isomorphic/urlMatch';
+import { ManualPromise } from '@isomorphic/manualPromise';
 import { Page, Worker } from '../page';
 import { Dispatcher } from './dispatcher';
 import { parseError, serializeError } from '../errors';
@@ -65,6 +66,8 @@ export class PageDispatcher extends Dispatcher<Page, channels.PageChannel, Brows
   private _jsCoverageActive = false;
   private _cssCoverageActive = false;
   private _screencastClient: ScreencastClient | undefined;
+  private _screencastFrameId = 0;
+  private _screencastFrameAcks = new Map<number, ManualPromise<void>>();
   private _videoRecorder: VideoRecorder | undefined;
 
   static from(parentScope: BrowserContextDispatcher, page: Page): PageDispatcher {
@@ -143,7 +146,7 @@ export class PageDispatcher extends Dispatcher<Page, channels.PageChannel, Brows
       const binding = new BindingCallDispatcher(this, params.name, source, args);
       this._dispatchEvent('bindingCall', { binding });
       return binding.promise();
-    });
+    }, params.noGlobal);
     this._disposables.push(binding);
     return { disposable: new DisposableDispatcher(this, binding) };
   }
@@ -233,7 +236,7 @@ export class PageDispatcher extends Dispatcher<Page, channels.PageChannel, Brows
       frame: (params.locator.frame as FrameDispatcher)._object,
       selector: params.locator.selector,
     } : undefined;
-    progress.log(`${renderTitleForCall(progress.metadata)}${params.timeout ? ` with timeout ${params.timeout}ms` : ''}`);
+    progress.log(`${renderFullTitleForCall(progress.metadata, this._page.browserContext._browser.sdkLanguage())}${progress.timeout ? ` with timeout ${progress.timeout}ms` : ''}`);
     return await this._page.expectScreenshot(progress, {
       ...params,
       locator,
@@ -363,7 +366,7 @@ export class PageDispatcher extends Dispatcher<Page, channels.PageChannel, Brows
   }
 
   async hideHighlight(params: channels.PageHideHighlightParams, progress: Progress): Promise<void> {
-    await progress.race(this._page.hideHighlight());
+    await progress.race(this._page.highlightController.hideHighlights());
   }
 
   async screencastShowOverlay(params: channels.PageScreencastShowOverlayParams): Promise<channels.PageScreencastShowOverlayResult> {
@@ -394,13 +397,20 @@ export class PageDispatcher extends Dispatcher<Page, channels.PageChannel, Brows
   async screencastStart(params: channels.PageScreencastStartParams, progress?: Progress): Promise<channels.PageScreencastStartResult> {
     if (this._screencastClient || this._videoRecorder)
       throw new Error('Screencast is already running');
+    if (params.fps !== undefined && params.fps <= 0)
+      throw new Error(`"fps" must be a positive number, got ${params.fps}`);
 
     if (params.sendFrames) {
       this._screencastClient = {
-        onFrame: (frame: ScreencastFrame) => {
-          this._dispatchEvent('screencastFrame', { data: frame.buffer, timestamp: frame.frameSwapWallTime, viewportWidth: frame.viewportWidth, viewportHeight: frame.viewportHeight });
+        onFrame: async (frame: ScreencastFrame) => {
+          const frameId = ++this._screencastFrameId;
+          const promise = new ManualPromise<void>();
+          this._screencastFrameAcks.set(frameId, promise);
+          this._dispatchEvent('screencastFrame', { frameId, data: frame.buffer, timestamp: frame.frameSwapWallTime, viewportWidth: frame.viewportWidth, viewportHeight: frame.viewportHeight });
+          await promise;
         },
-        dispose: () => {},
+        gracefulClose: () => this._clearScreencastFrameAcks(),
+        dispose: () => this._clearScreencastFrameAcks(),
         size: params.size,
         quality: params.quality,
       };
@@ -415,6 +425,14 @@ export class PageDispatcher extends Dispatcher<Page, channels.PageChannel, Brows
     return { artifact: artifact ? createVideoDispatcher(this.parentScope(), artifact) : undefined };
   }
 
+  async screencastFrameAck(params: channels.PageScreencastFrameAckParams): Promise<channels.PageScreencastFrameAckResult> {
+    const promise = this._screencastFrameAcks.get(params.frameId);
+    if (!promise)
+      return;
+    this._screencastFrameAcks.delete(params.frameId);
+    promise.resolve();
+  }
+
   async screencastStop(params: channels.PageScreencastStopParams, progress?: Progress): Promise<channels.PageScreencastStopResult> {
     if (this._videoRecorder) {
       await this._videoRecorder.stop();
@@ -423,8 +441,16 @@ export class PageDispatcher extends Dispatcher<Page, channels.PageChannel, Brows
 
     const client = this._screencastClient;
     this._screencastClient = undefined;
-    if (client)
+    if (client) {
+      client.dispose();
       this._page.screencast.removeClient(client);
+    }
+  }
+
+  private _clearScreencastFrameAcks() {
+    for (const promise of this._screencastFrameAcks.values())
+      promise.resolve();
+    this._screencastFrameAcks.clear();
   }
 
   async startJSCoverage(params: channels.PageStartJSCoverageParams, progress: Progress): Promise<void> {
@@ -574,7 +600,7 @@ export class BindingCallDispatcher extends Dispatcher<SdkObject, channels.Bindin
     super(scope, new SdkObject(scope._object, 'bindingCall'), 'BindingCall', {
       frame: frameDispatcher,
       name,
-      args: args.map(serializeResult),
+      args: args.map(arg => serializeResult(arg)),
     });
     this._promise = new Promise((resolve, reject) => {
       this._resolve = resolve;

@@ -39,7 +39,7 @@ const config: Config<ServerWorkerOptions & PlaywrightWorkerOptions & PlaywrightT
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [
     ['list', { printFailuresInline: true }],
-    ['json', { outputFile: path.join(outputDir, 'report.json') }],
+    ['../config/parquetReporter.ts'],
   ] : 'line',
   projects: [],
 };

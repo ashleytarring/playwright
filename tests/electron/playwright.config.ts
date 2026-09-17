@@ -38,9 +38,9 @@ const config: Config<PlaywrightWorkerOptions & PlaywrightTestOptions> = {
   retries: process.env.CI ? 3 : 0,
   reporter: process.env.CI ? [
     ['dot'],
-    ['json', { outputFile: path.join(outputDir, 'report.json') }],
     // Needed since tests/electron/package.json exists which would otherwise be picked up as tests/electron/ (outputDir)
     ['blob', { outputDir: path.resolve(__dirname, '../../blob-report') }],
+    ['../config/parquetReporter.ts'],
   ] : 'line',
   tag: process.env.PW_TAG,
   projects: [],

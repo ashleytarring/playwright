@@ -146,13 +146,43 @@ To specify the final trace zip file name, you need to pass `path` option to
 Whether to capture screenshots during tracing. Screenshots are used to build
 a timeline preview.
 
+### option: Tracing.start.coverage
+* since: v1.64
+* langs: js
+- `coverage` <[boolean]>
+
+Whether to collect code coverage from istanbul-instrumented application code. Build the application with an istanbul instrumentation plugin, for example [`vite-plugin-istanbul`](https://www.npmjs.com/package/vite-plugin-istanbul) or [`babel-plugin-istanbul`](https://www.npmjs.com/package/babel-plugin-istanbul), so that pages expose the `window.__coverage__` object. Playwright collects accumulated counters from all pages and frames, including right before navigations and page closes, and stores them in istanbul format inside the trace file.
+
 ### option: Tracing.start.snapshots
 * since: v1.12
+* langs: js
+- `snapshots` <[boolean]|[Object]>
+  - `dom` ?<[boolean]> Capture DOM snapshot on every action and record network activity. Optional.
+  - `aria` ?<[boolean]> Capture aria snapshot of the page on every action. Optional.
+  - `screen` ?<[boolean]> Capture a screenshot of the page on every action. Optional.
+
+Which snapshots to capture on every action. Passing `true` is a shortcut for `{ dom: true }`.
+
+### option: Tracing.start.snapshots
+* since: v1.12
+* langs: java, python, csharp
 - `snapshots` <[boolean]>
 
-If this option is true tracing will
-* capture DOM snapshot on every action
-* record network activity
+Whether to capture DOM snapshot and record network activity on every action.
+
+### option: Tracing.start.ariaSnapshots
+* since: v1.63
+* langs: java, python, csharp
+- `ariaSnapshots` <[boolean]>
+
+Whether to capture aria snapshot of the page on every action.
+
+### option: Tracing.start.screenSnapshots
+* since: v1.63
+* langs: java, python, csharp
+- `screenSnapshots` <[boolean]>
+
+Whether to capture a screenshot of the page on every action.
 
 ### option: Tracing.start.sources
 * since: v1.17
@@ -309,7 +339,7 @@ To specify the final trace zip file name, you need to pass `path` option to
 
 Start recording a HAR (HTTP Archive) of network activity in this context. The HAR file is written to disk when [`method: Tracing.stopHar`] is called, or when the returned [Disposable] is disposed.
 
-Only one HAR recording can be active at a time per [BrowserContext].
+Only one HAR recording can be active at a time per [Tracing] instance.
 
 **Usage**
 

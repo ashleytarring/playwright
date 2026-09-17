@@ -116,10 +116,9 @@ export async function loadConfig(location: ConfigLocation, overrides?: ConfigCLI
   }
 
   // 3. Load transform options from the playwright config.
-  const babelPlugins = (userConfig as any)['@playwright/test']?.babelPlugins || [];
   const external = userConfig.build?.external || [];
   const jsxImportSource = path.dirname(require.resolve('playwright'));
-  await setTransformConfig({ babelPlugins, external, jsxImportSource });
+  await setTransformConfig({ external, jsxImportSource });
   if (!overrides?.tsconfig)
     await setSingleTSConfig(fullConfig?.singleTSConfigPath);
 
@@ -239,13 +238,13 @@ function validateConfig(file: string, config: Config) {
   }
 
   if ('updateSnapshots' in config && config.updateSnapshots !== undefined) {
-    if (typeof config.updateSnapshots !== 'string' || !['all', 'changed', 'missing', 'none'].includes(config.updateSnapshots))
-      throw errorWithFile(file, `config.updateSnapshots must be one of "all", "changed", "missing" or "none"`);
+    if (typeof config.updateSnapshots !== 'string' || !['all', 'changed', 'missing', 'none', 'default'].includes(config.updateSnapshots))
+      throw errorWithFile(file, `config.updateSnapshots must be one of "all", "changed", "missing", "none" or "default"`);
   }
 
   if ('retryStrategy' in config && config.retryStrategy !== undefined) {
-    if (typeof config.retryStrategy !== 'string' || !['immediate', 'deferred'].includes(config.retryStrategy))
-      throw errorWithFile(file, `config.retryStrategy must be one of "immediate" or "deferred"`);
+    if (typeof config.retryStrategy !== 'string' || !['immediate', 'isolated'].includes(config.retryStrategy))
+      throw errorWithFile(file, `config.retryStrategy must be one of "immediate" or "isolated"`);
   }
 
   if ('tsconfig' in config && config.tsconfig !== undefined) {

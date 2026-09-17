@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
+import { parseSerializedValue, serializeValue } from '@protocol/serializers';
 import { Dispatcher } from './dispatcher';
 import { ElementHandleDispatcher } from './elementHandlerDispatcher';
-import { parseSerializedValue, serializeValue } from '../../protocol/serializers';
 
 import type * as js from '../javascript';
 import type { ElectronApplicationDispatcher } from './electronDispatcher';
@@ -43,12 +43,14 @@ export class JSHandleDispatcher<ParentScope extends JSHandleDispatcherParentScop
   }
 
   async evaluateExpression(params: channels.JSHandleEvaluateExpressionParams, progress: Progress): Promise<channels.JSHandleEvaluateExpressionResult> {
-    const jsHandle = await this._object.evaluateExpression(progress, params.expression, { isFunction: params.isFunction }, parseArgument(params.arg));
-    return { value: serializeResult(jsHandle) };
+    if (params.world)
+      throw new Error(`Only element handles can be evaluated in the "${params.world}" world`);
+    const jsHandle = await this._object.evaluateExpression(progress, params.expression, { isFunction: params.isFunction, serialize: params.serialize }, parseArgument(params.arg));
+    return { value: serializeResult(jsHandle, params) };
   }
 
   async evaluateExpressionHandle(params: channels.JSHandleEvaluateExpressionHandleParams, progress: Progress): Promise<channels.JSHandleEvaluateExpressionHandleResult> {
-    const jsHandle = await this._object.evaluateExpressionHandle(progress, params.expression, { isFunction: params.isFunction }, parseArgument(params.arg));
+    const jsHandle = await this._object.evaluateExpressionHandle(progress, params.expression, { isFunction: params.isFunction, serialize: params.serialize }, parseArgument(params.arg));
     // If "jsHandle" is an ElementHandle, it belongs to the same frame as "this".
     return { handle: ElementHandleDispatcher.fromJSOrElementHandle(this.parentScope() as FrameDispatcher, jsHandle) };
   }
@@ -89,6 +91,6 @@ export function parseValue(v: channels.SerializedValue): any {
   return parseSerializedValue(v, []);
 }
 
-export function serializeResult(arg: any): channels.SerializedValue {
-  return serializeValue(arg, value => ({ fallThrough: value }));
+export function serializeResult(arg: any, options?: { serialize?: ('Map' | 'Set')[] }): channels.SerializedValue {
+  return serializeValue(arg, value => ({ fallThrough: value }), options);
 }

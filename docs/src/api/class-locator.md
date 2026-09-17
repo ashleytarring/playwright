@@ -239,6 +239,61 @@ When `true`, appends each element's bounding box as `[box=x,y,width,height]` to 
 relative to the viewport, in CSS pixels, as returned by [`Element.getBoundingClientRect()`](https://developer.mozilla.org/en-US/docs/Web/API/Element/getBoundingClientRect).
 Defaults to `false`.
 
+## async method: Locator.ariaSnapshotJSON
+* since: v1.63
+* langs: js
+- returns: <[Serializable]>
+
+Captures the aria snapshot of the given element as a free form JSON object.
+
+**Usage**
+
+```js
+await page.getByRole('list').ariaSnapshotJSON();
+```
+
+**Details**
+
+This method returns the same tree as [`method: Locator.ariaSnapshot`], serialized as a JSON value instead of YAML markup.
+The result is a list of nodes, each node being an object with the following properties:
+* `role` Aria role of the element, or `"text"` for a static text fragment.
+* `name` Accessible name of the element, if any.
+* `text` Text content of the element when it is the only child, or the content of a static text fragment.
+* `children` Child nodes and text fragments.
+* Boolean and value properties for element state flags: `checked`, `disabled`, `expanded`, `active`, `invalid`, `level`, `pressed` and `selected`.
+* Additional element properties, for example `url` for links and `placeholder` for text boxes.
+* `ref` Element reference for AI-optimized snapshots.
+* `cursor` Set to `"pointer"` for clickable elements in AI-optimized snapshots.
+* `box` Bounding box of the element when [`option: Locator.ariaSnapshotJSON.boxes`] is set.
+
+### option: Locator.ariaSnapshotJSON.mode
+* since: v1.63
+- `mode` <[AriaSnapshotMode]<"ai"|"default">>
+
+When set to `"ai"`, returns a snapshot optimized for AI consumption. Defaults to `"default"`. See details in [`method: Locator.ariaSnapshot`].
+
+### option: Locator.ariaSnapshotJSON.timeout = %%-input-timeout-%%
+* since: v1.63
+
+### option: Locator.ariaSnapshotJSON.timeout = %%-input-timeout-js-%%
+* since: v1.63
+
+### option: Locator.ariaSnapshotJSON.signal = %%-input-signal-%%
+
+### option: Locator.ariaSnapshotJSON.depth
+* since: v1.63
+- `depth` <[int]>
+
+When specified, limits the depth of the snapshot.
+
+### option: Locator.ariaSnapshotJSON.boxes
+* since: v1.63
+- `boxes` <[boolean]>
+
+When `true`, includes each element's bounding box as a `box` property with `x`, `y`, `width` and `height`. Coordinates are
+relative to the viewport, in CSS pixels, as returned by [`Element.getBoundingClientRect()`](https://developer.mozilla.org/en-US/docs/Web/API/Element/getBoundingClientRect).
+Defaults to `false`.
+
 ## async method: Locator.blur
 * since: v1.28
 
@@ -1123,6 +1178,15 @@ Console.WriteLine(result); // prints "myId text 56"
 
 Optional argument to pass to [`param: expression`].
 
+### option: Locator.evaluate.exposeFunctions = %%-js-evaluate-expose-functions-%%
+* since: v1.62
+
+### option: Locator.evaluate.serialize = %%-js-evaluate-serialize-%%
+* since: v1.64
+
+### option: Locator.evaluate.world = %%-js-evaluate-world-%%
+* since: v1.64
+
 ### option: Locator.evaluate.timeout
 * since: v1.14
 * langs: python, java, csharp
@@ -1136,6 +1200,8 @@ Maximum time in milliseconds to wait for the locator before evaluating. Note tha
 - `timeout` <[float]>
 
 Maximum time in milliseconds to wait for the locator before evaluating. Note that after locator is resolved, evaluation itself is not limited by the timeout. Defaults to `0` - no timeout.
+
+### option: Locator.evaluate.signal = %%-input-signal-%%
 
 ## async method: Locator.evaluateAll
 * since: v1.14
@@ -1190,6 +1256,9 @@ var moreThanTen = await locator.EvaluateAllAsync<bool>("(divs, min) => divs.leng
 
 Optional argument to pass to [`param: expression`].
 
+### option: Locator.evaluateAll.world = %%-js-evaluate-world-%%
+* since: v1.64
+
 ## async method: Locator.evaluateHandle
 * since: v1.14
 - returns: <[JSHandle]>
@@ -1220,6 +1289,12 @@ See [`method: Page.evaluateHandle`] for more details.
 
 Optional argument to pass to [`param: expression`].
 
+### option: Locator.evaluateHandle.exposeFunctions = %%-js-evaluate-expose-functions-%%
+* since: v1.62
+
+### option: Locator.evaluateHandle.serialize = %%-js-evaluate-serialize-%%
+* since: v1.64
+
 ### option: Locator.evaluateHandle.timeout
 * since: v1.14
 * langs: python, java, csharp
@@ -1233,6 +1308,8 @@ Maximum time in milliseconds to wait for the locator before evaluating. Note tha
 - `timeout` <[float]>
 
 Maximum time in milliseconds to wait for the locator before evaluating. Note that after locator is resolved, evaluation itself is not limited by the timeout. Defaults to `0` - no timeout.
+
+### option: Locator.evaluateHandle.signal = %%-input-signal-%%
 
 ## async method: Locator.fill
 * since: v1.14
@@ -1483,8 +1560,6 @@ Attribute name to get the value for.
 ### option: Locator.getByRole.exact = %%-locator-get-by-role-option-exact-%%
 
 ### option: Locator.getByRole.description = %%-locator-get-by-role-option-description-%%
-
-### option: Locator.getByRole.busy = %%-locator-get-by-role-option-busy-%%
 
 ## method: Locator.getByTestId
 * since: v1.27
@@ -1945,7 +2020,7 @@ Locator banana = page.getByRole(AriaRole.LISTITEM).last();
 ```
 
 ```csharp
-var banana = await page.GetByRole(AriaRole.Listitem).Last(1);
+var banana = page.GetByRole(AriaRole.Listitem).Last;
 ```
 
 ## method: Locator.locator
@@ -2844,6 +2919,47 @@ When all steps combined have not finished during the specified [`option: timeout
 
 ### option: Locator.uncheck.trial = %%-input-trial-%%
 * since: v1.14
+
+## method: Locator.visible
+* since: v1.63
+- returns: <[Locator]>
+
+Returns a locator that matches only [visible](../actionability.md#visible) elements, ignoring the invisible ones. This is the recommended way to distinguish elements by visibility, as opposed to the `:visible` CSS pseudo-class.
+
+Note that visibility is checked every time the locator is used, and not at the moment of the [`method: Locator.visible`] call.
+
+**Usage**
+
+Consider a page with two buttons, the first invisible and the second visible.
+
+```html
+<button style='display: none'>Invisible</button>
+<button>Visible</button>
+```
+
+This will only find the second button, because it is visible, and then click it.
+
+```js
+await page.locator('button').visible().click();
+```
+
+```java
+page.locator("button").visible().click();
+```
+
+```python async
+await page.locator("button").visible.click()
+```
+
+```python sync
+page.locator("button").visible.click()
+```
+
+```csharp
+await page.Locator("button").Visible.ClickAsync();
+```
+
+To match invisible elements instead, use [`method: Locator.filter`] with the [`option: Locator.filter.visible`] option set to `false`.
 
 ## async method: Locator.waitFor
 * since: v1.16

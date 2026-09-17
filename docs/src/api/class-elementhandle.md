@@ -470,6 +470,9 @@ Assert.AreEqual("10", await tweetHandle.EvalOnSelectorAsync(".retweets", "node =
 
 Optional argument to pass to [`param: expression`].
 
+### option: ElementHandle.evalOnSelector.world = %%-js-evaluate-world-%%
+* since: v1.64
+
 ## async method: ElementHandle.evalOnSelectorAll
 * since: v1.9
 * discouraged: In most cases, [`method: Locator.evaluateAll`],
@@ -537,6 +540,9 @@ Assert.AreEqual(new [] { "Hello!", "Hi!" }, await feedHandle.EvalOnSelectorAllAs
 - `arg` ?<[EvaluationArgument]>
 
 Optional argument to pass to [`param: expression`].
+
+### option: ElementHandle.evalOnSelectorAll.world = %%-js-evaluate-world-%%
+* since: v1.64
 
 ## async method: ElementHandle.fill
 * since: v1.8
@@ -650,11 +656,10 @@ Returns `input.value` for the selected `<input>` or `<textarea>` or `<select>` e
 
 Throws for non-input elements. However, if the element is inside the `<label>` element that has an associated [control](https://developer.mozilla.org/en-US/docs/Web/API/HTMLLabelElement/control), returns the value of the control.
 
-### option: ElementHandle.inputValue.timeout = %%-input-timeout-%%
+### option: ElementHandle.inputValue.timeout
 * since: v1.13
-
-### option: ElementHandle.inputValue.timeout = %%-input-timeout-js-%%
-* since: v1.13
+* deprecated: This option is ignored. The value is returned immediately.
+- `timeout` <[float]>
 
 ## async method: ElementHandle.isChecked
 * since: v1.8

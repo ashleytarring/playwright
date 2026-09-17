@@ -34,8 +34,7 @@ import { DisposableDispatcher } from './disposableDispatcher';
 import { TracingDispatcher } from './tracingDispatcher';
 import { WebSocketRouteDispatcher } from './webSocketRouteDispatcher';
 import { WritableStreamDispatcher } from './writableStreamDispatcher';
-import { Recorder } from '../recorder';
-import { RecorderApp } from '../recorder/recorderApp';
+import { ProgrammaticRecorderApp, RecorderApp } from '../recorder/recorderApp';
 import { ElementHandleDispatcher } from './elementHandlerDispatcher';
 import { JSHandleDispatcher } from './jsHandleDispatcher';
 import { disposeAll } from '../disposable';
@@ -46,12 +45,9 @@ import type { Request, Response, RouteHandler } from '../network';
 import type { InitScript, Page, PageError } from '../page';
 import type { Disposable } from '../disposable';
 import type { DispatcherScope } from './dispatcher';
-import type { LocalUtilsDispatcher } from './localUtilsDispatcher';
 import type * as channels from '../channels';
 import type { Progress } from '../progress';
 import type { URLMatch } from '@isomorphic/urlMatch';
-
-type HarForAPIRequestsDisposable = Disposable & { registrationId: string };
 
 export class BrowserContextDispatcher extends Dispatcher<BrowserContext, channels.BrowserContextChannel, DispatcherScope> implements channels.BrowserContextChannel {
   _type_BrowserContext = true;
@@ -60,10 +56,12 @@ export class BrowserContextDispatcher extends Dispatcher<BrowserContext, channel
   _webSocketInterceptionPatterns: channels.BrowserContextSetWebSocketInterceptionPatternsParams['patterns'] = [];
   private _disposables: Disposable[] = [];
   private _dialogHandler: (dialog: Dialog) => boolean;
+  private _dialogClosedListener: (dialog: Dialog) => void;
   private _clockPaused = false;
   private _requestInterceptor: RouteHandler;
   private _interceptionUrlMatchers: URLMatch[] = [];
   private _routeWebSocketInitScript: InitScript | undefined;
+  private _recorderApp: ProgrammaticRecorderApp | undefined;
 
   static from(parentScope: DispatcherScope, context: BrowserContext): BrowserContextDispatcher {
     const result = parentScope.connection.existingDispatcher<BrowserContextDispatcher>(context);
@@ -141,6 +139,13 @@ export class BrowserContextDispatcher extends Dispatcher<BrowserContext, channel
       return true;
     };
     context.dialogManager.addDialogHandler(this._dialogHandler);
+    this._dialogClosedListener = dialog => {
+      if (!this._shouldDispatchEvent(dialog.page(), 'dialogClosed'))
+        return;
+      const dialogDispatcher = this.connection.existingDispatcher<DialogDispatcher>(dialog) || new DialogDispatcher(this, dialog);
+      this._dispatchEvent('dialogClosed', { dialog: dialogDispatcher });
+    };
+    context.dialogManager.addDialogClosedListener(this._dialogClosedListener);
 
     if (context._browser.options.name === 'chromium' && this._object._browser instanceof CRBrowser) {
       for (const serviceWorker of (context as CRBrowserContext).serviceWorkers())
@@ -192,9 +197,6 @@ export class BrowserContextDispatcher extends Dispatcher<BrowserContext, channel
         responseEndTiming: request._responseEndTiming,
         page: PageDispatcher.fromNullable(this, request.frame()?._page.initializedOrUndefined()),
       });
-    });
-    this.addObjectListener(BrowserContext.Events.RecorderEvent, ({ event, data, page, code }: { event: 'actionAdded' | 'actionUpdated' | 'signalAdded', data: any, page: Page, code: string }) => {
-      this._dispatchEvent('recorderEvent', { event, data, code, page: PageDispatcher.from(this, page) });
     });
   }
 
@@ -253,7 +255,7 @@ export class BrowserContextDispatcher extends Dispatcher<BrowserContext, channel
       const binding = new BindingCallDispatcher(pageDispatcher, params.name, source, args);
       this._dispatchEvent('bindingCall', { binding });
       return binding.promise();
-    });
+    }, undefined, params.noGlobal);
     this._disposables.push(binding);
     return { disposable: new DisposableDispatcher(this, binding) };
   }
@@ -338,40 +340,8 @@ export class BrowserContextDispatcher extends Dispatcher<BrowserContext, channel
       this._routeWebSocketInitScript = await WebSocketRouteDispatcher.install(progress, this.connection, this._context);
   }
 
-  async routeAPIRequestsFromHar(params: channels.BrowserContextRouteAPIRequestsFromHarParams, progress: Progress): Promise<channels.BrowserContextRouteAPIRequestsFromHarResult> {
-    // Reuse the HarBackend that was already opened via localUtils.harOpen for the page-side
-    // route, rather than opening a second backend for the same HAR file. The backend is owned
-    // by LocalUtils and closed via harClose, so this registration must not dispose it.
-    const harBackend = this.connection.getDispatcher<LocalUtilsDispatcher>('LocalUtils')?.harBackendForId(params.harId);
-    if (!harBackend)
-      throw new Error('Internal error: har was not opened');
-    const urlMatch: URLMatch | undefined =
-      params.urlRegexSource !== undefined && params.urlRegexFlags !== undefined ? new RegExp(params.urlRegexSource, params.urlRegexFlags) :
-        params.urlGlob !== undefined ? params.urlGlob : undefined;
-    const registrationId = createGuid();
-    const registration = this._context.routeAPIRequestsFromHar({
-      harBackend,
-      urlMatch,
-      notFound: params.notFound,
-      baseURL: this._context._options.baseURL,
-    });
-    this._disposables.push({
-      registrationId,
-      dispose: async () => registration.dispose(),
-    } as HarForAPIRequestsDisposable);
-    return { registrationId };
-  }
-
-  async unrouteAPIRequestsFromHar(params: channels.BrowserContextUnrouteAPIRequestsFromHarParams, progress: Progress): Promise<void> {
-    const index = this._disposables.findIndex(d => (d as HarForAPIRequestsDisposable).registrationId === params.registrationId);
-    if (index === -1)
-      return;
-    const [disposable] = this._disposables.splice(index, 1);
-    await progress.race(disposable.dispose());
-  }
-
   async storageState(params: channels.BrowserContextStorageStateParams, progress: Progress): Promise<channels.BrowserContextStorageStateResult> {
-    return await this._context.storageState(progress, params.indexedDB, params.credentials);
+    return await this._context.storageState(progress, params);
   }
 
   async setStorageState(params: channels.BrowserContextSetStorageStateParams, progress: Progress): Promise<void> {
@@ -382,14 +352,24 @@ export class BrowserContextDispatcher extends Dispatcher<BrowserContext, channel
     await this._context.close(progress, params);
   }
 
-  async enableRecorder(params: channels.BrowserContextEnableRecorderParams, progress: Progress): Promise<void> {
+  async showRecorder(params: channels.BrowserContextShowRecorderParams, progress: Progress): Promise<void> {
     await progress.race(RecorderApp.show(this._context, params));
   }
 
-  async disableRecorder(params: channels.BrowserContextDisableRecorderParams, progress: Progress): Promise<void> {
-    const recorder = await progress.race(Recorder.existingForContext(this._context));
-    if (recorder)
-      await progress.race(recorder.setMode('none'));
+  async startRecording(params: channels.BrowserContextStartRecordingParams, progress: Progress): Promise<void> {
+    if (this._recorderApp)
+      throw new Error('Recording is already in progress.');
+    // Recorder events only go to the connection that started the recording.
+    this._recorderApp = await progress.race(ProgrammaticRecorderApp.start(this._context, params, ({ event, data, page, code }) => {
+      this._dispatchEvent('recorderEvent', { event, data, code, page: PageDispatcher.from(this, page) });
+    }));
+  }
+
+  async stopRecording(params: channels.BrowserContextStopRecordingParams, progress: Progress): Promise<void> {
+    const recorderApp = this._recorderApp;
+    this._recorderApp = undefined;
+    if (recorderApp)
+      await progress.race(recorderApp.stop());
   }
 
   async exposeConsoleApi(params: channels.BrowserContextExposeConsoleApiParams, progress: Progress): Promise<void> {
@@ -473,12 +453,17 @@ export class BrowserContextDispatcher extends Dispatcher<BrowserContext, channel
   }
 
   override _onDispose() {
+    const recorderApp = this._recorderApp;
+    this._recorderApp = undefined;
+    recorderApp?.stop().catch(() => {});
+
     // Avoid protocol calls for the closed context.
     if (this._context.isClosingOrClosed())
       return;
 
     // Cleanup properly and leave the page in a good state. Other clients may still connect and use it.
     this._context.dialogManager.removeDialogHandler(this._dialogHandler);
+    this._context.dialogManager.removeDialogClosedListener(this._dialogClosedListener);
     this._interceptionUrlMatchers = [];
     this._context.removeRequestInterceptor(this._requestInterceptor).catch(() => {});
     disposeAll(this._disposables).catch(() => {});

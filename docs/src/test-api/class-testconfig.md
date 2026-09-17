@@ -448,7 +448,7 @@ export default defineConfig({
 
 ## property: TestConfig.reporter
 * since: v1.10
-- type: ?<[string]|[Array]<[Object]>|[BuiltInReporter]<"list"|"dot"|"line"|"github"|"json"|"junit"|"null"|"html">>
+- type: ?<[string]|[Array]<[Object]>|[BuiltInReporter]<"list"|"dot"|"line"|"github"|"json"|"junit"|"null"|"html"|"perfetto">>
   - `0` <[string]> Reporter name or module or file path
   - `1` <[Object]> An object with reporter options if any
 
@@ -517,11 +517,11 @@ export default defineConfig({
 
 ## property: TestConfig.retryStrategy
 * since: v1.62
-- type: ?<[RetryStrategy]<"immediate"|"deferred">>
+- type: ?<[RetryStrategy]<"immediate"|"isolated">>
 
 Controls when failed tests are retried. Defaults to `'immediate'`.
 * `'immediate'` - A failed test is retried as soon as a worker is available, interleaved with the rest of the run. This is the default.
-* `'deferred'` - Retries are run only after all tests have had their first attempt, in parallel up to the configured number of [workers](#test-config-workers).
+* `'isolated'` - Retries are run at the end, after all other tests have finished, one by one in a single worker. This minimizes the interference between retried tests and the rest of the suite, at the expense of the total run time.
 
 Learn more about [test retries](../test-retries.md#retries).
 
@@ -532,7 +532,7 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   retries: 2,
-  retryStrategy: 'deferred',
+  retryStrategy: 'isolated',
 });
 ```
 
@@ -664,13 +664,14 @@ export default defineConfig({
 
 ## property: TestConfig.updateSnapshots
 * since: v1.10
-- type: ?<[UpdateSnapshots]<"all"|"changed"|"missing"|"none">>
+- type: ?<[UpdateSnapshots]<"all"|"changed"|"missing"|"none"|"default">>
 
-Whether to update expected snapshots with the actual results produced by the test run. Defaults to `'missing'`.
+Whether to update expected snapshots with the actual results produced by the test run. Defaults to `'default'`.
 * `'all'` - All tests that are executed will update snapshots.
 * `'changed'` - All tests that are executed will update snapshots that did not match. Matching snapshots will not be updated. Also creates missing snapshots.
-* `'missing'` - Missing snapshots are created, for example when authoring a new test and running it for the first time. This is the default.
+* `'missing'` - Missing snapshots are created, for example when authoring a new test and running it for the first time. Tests that only create missing snapshots pass.
 * `'none'` - No snapshots are updated.
+* `'default'` - Missing snapshots are created, but the tests that create them fail, so that the run does not silently pass in CI. This is the default.
 
 Learn more about [snapshots](../test-snapshots.md).
 
@@ -680,7 +681,7 @@ Learn more about [snapshots](../test-snapshots.md).
 import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
-  updateSnapshots: 'missing',
+  updateSnapshots: 'default',
 });
 ```
 

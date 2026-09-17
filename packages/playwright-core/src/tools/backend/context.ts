@@ -22,11 +22,14 @@ import debug from 'debug';
 import { escapeWithQuotes } from '@isomorphic/stringUtils';
 import { disposeAll } from '@isomorphic/disposable';
 import { eventsHelper } from '@utils/eventsHelper';
-import { isPathInside, isSystemDirectory, isWritable } from '@utils/fileUtils';
+import { isPathInside, isSystemDirectory, isWritable, resolveSymlinks } from '@utils/fileUtils';
 import { playwright } from '../../inprocess';
 
+import { dedent, languageGeneratorId, secretCode } from './codegen';
 import { Tab } from './tab';
 
+import type { BrowserContextEx } from './browserContextEx';
+import type { CodegenLanguage } from './codegen';
 import type * as playwrightTypes from '../../..';
 import type { SessionLog } from './sessionLog';
 import type { Disposable } from '@isomorphic/disposable';
@@ -37,26 +40,29 @@ const testDebug = debug('pw:mcp:test');
 export type ContextConfig = {
   allowUnrestrictedFileAccess?: boolean;
   capabilities?: ToolCapability[];
-  codegen?: 'typescript' | 'none';
+  codegen?: 'typescript' | 'python' | 'java' | 'csharp' | 'none';
   console?: { level?: 'error' | 'warning' | 'info' | 'debug' };
-  imageResponses?: 'allow' | 'omit';
+  imageResponses?: 'allow' | 'omit' | 'only';
+  filePaths?: 'relative' | 'absolute';
   network?: {
     allowedOrigins?: string[];
     blockedOrigins?: string[];
   };
   outputDir?: string;
   outputMaxSize?: number;
-  outputMode?: 'file' | 'stdout';
   saveSession?: boolean;
   secrets?: Record<string, string>;
+  sharedBrowserContext?: boolean;
   snapshot?: {
     mode?: 'full' | 'none';
+    boxes?: boolean;
   };
   testIdAttribute?: string;
   timeouts?: {
     action?: number;
     navigation?: number;
     expect?: number;
+    settle?: number;
   };
   browser?: {
     initScript?: string[];
@@ -88,7 +94,7 @@ export type FilenameTemplate = {
   date?: Date;
 };
 
-type VideoParams = { size?: { width: number; height: number } };
+type VideoParams = { size?: { width: number; height: number }, fps?: number };
 
 export class Context {
   readonly config: ContextConfig;
@@ -104,6 +110,7 @@ export class Context {
     fileNames: string[];
     fileName: string;
   } | undefined;
+  private _recordedActions: string[] | undefined;
   private _disposables: Disposable[] = [];
 
   private _runningToolName: string | undefined;
@@ -126,6 +133,7 @@ export class Context {
 
   async dispose() {
     process.off('unhandledRejection', this._onUnhandledRejection);
+    await this.stopRecording();
     await disposeAll(this._disposables);
     for (const tab of this._tabs)
       await tab.dispose();
@@ -176,6 +184,7 @@ export class Context {
       throw new Error(`Tab ${index} not found`);
     await tab.page.bringToFront();
     this._currentTab = tab;
+    await tab.updateWebMCPTools();
     return tab;
   }
 
@@ -190,6 +199,7 @@ export class Context {
       await this.newTab();
     if (crashed)
       this._currentTab!.logErrorMessage('Page crashed and was reset to about:blank.');
+    await this._currentTab!.waitForInitialized();
     return this._currentTab!;
   }
 
@@ -230,14 +240,56 @@ export class Context {
     return [...video.fileNames];
   }
 
+  async startRecording() {
+    if (this._recordedActions)
+      throw new Error('Recording is already in progress.');
+    const browserContext = await this.ensureBrowserContext() as BrowserContextEx;
+    if (typeof browserContext._startRecording !== 'function')
+      throw new Error('Recording requires a newer version of Playwright, please upgrade.');
+    const recordedActions: string[] = [];
+    await browserContext._startRecording({
+      language: languageGeneratorId(this.codegenLanguage()),
+    }, {
+      actionAdded: (page, action, code) => {
+        recordedActions.push(code);
+      },
+      actionUpdated: (page, action, code) => {
+        if (recordedActions.length)
+          recordedActions[recordedActions.length - 1] = code;
+        else
+          recordedActions.push(code);
+      },
+      signalAdded: (page, signal, code) => {
+        if (recordedActions.length && code)
+          recordedActions[recordedActions.length - 1] = code;
+      },
+    });
+    this._recordedActions = recordedActions;
+  }
+
+  async stopRecording(): Promise<string[] | undefined> {
+    const recordedActions = this._recordedActions;
+    if (!recordedActions)
+      return undefined;
+    this._recordedActions = undefined;
+    await (this._rawBrowserContext as BrowserContextEx)._stopRecording();
+    return recordedActions.filter(code => code.trim()).map(dedent);
+  }
+
+  codegenLanguage(): CodegenLanguage {
+    const codegen = this.config.codegen ?? 'typescript';
+    return codegen === 'none' ? 'typescript' : codegen;
+  }
+
   private async _startPageVideo(page: playwrightTypes.Page) {
     if (!this._video)
       return;
     const suffix = this._video.fileNames.length ? `-${this._video.fileNames.length}` : '';
     let fileName = this._video.fileName;
     if (fileName && suffix) {
+      const dir = path.dirname(fileName);
       const ext = path.extname(fileName);
-      fileName = path.basename(fileName, ext) + suffix + ext;
+      fileName = path.join(dir, path.basename(fileName, ext) + suffix + ext);
     }
     this._video.fileNames.push(fileName);
     await page.screencast.start({ path: fileName, ...this._video.params });
@@ -345,12 +397,13 @@ export class Context {
       throw new Error(`Access to "file:" protocol is blocked. Attempted URL: "${url}"`);
   }
 
-  lookupSecret(secretName: string): { value: string, code: string } {
+  lookupSecret(secretName: string): { value: string, code: string, isSecret: boolean } {
     if (!this.config.secrets?.[secretName])
-      return { value: secretName, code: escapeWithQuotes(secretName, '\'') };
+      return { value: secretName, code: escapeWithQuotes(secretName, '\''), isSecret: false };
     return {
       value: this.config.secrets[secretName]!,
-      code: `process.env['${secretName}']`,
+      code: secretCode(this.codegenLanguage(), secretName),
+      isSecret: true,
     };
   }
 
@@ -413,6 +466,12 @@ async function checkFile(options: ContextOptions, resolvedFilename: string, flag
   // Trust llm to use valid characters in file names.
   const output = outputDir(options);
   const workspace = options.cwd;
-  if (!isPathInside(output, resolvedFilename) && !isPathInside(workspace, resolvedFilename))
+  // Follow symlinks, an unresolvable root cannot be traversed anyway.
+  const [realOutput, realWorkspace, realFilename] = await Promise.all([
+    resolveSymlinks(output).catch(() => output),
+    resolveSymlinks(workspace).catch(() => workspace),
+    resolveSymlinks(resolvedFilename),
+  ]);
+  if (!isPathInside(realOutput, realFilename) && !isPathInside(realWorkspace, realFilename))
     throw new Error(`File access denied: ${resolvedFilename} is outside allowed roots. Allowed roots: ${output}, ${workspace}`);
 }

@@ -33,6 +33,7 @@ import { CRServiceWorker } from './crServiceWorker';
 import type { InitScript } from '../page';
 import type { ConnectionTransport } from '../transport';
 import type * as types from '../types';
+import type { HttpCredentials } from '@protocol/structs';
 import type { CDPSession, CRSession } from './crConnection';
 import type { CRDevTools } from './crDevTools';
 import type { Protocol } from './protocol';
@@ -370,7 +371,7 @@ export class CRBrowserContext extends BrowserContext<CREventsMap> {
   }
 
   override async doCreateNewPage(): Promise<Page> {
-    const { targetId } = await this._browser._session.send('Target.createTarget', { url: 'about:blank', browserContextId: this._browserContextId, background: false, focus: false });
+    const { targetId } = await this._browser._session.send('Target.createTarget', { url: 'about:blank', browserContextId: this._browserContextId });
     return this._browser._crPages.get(targetId)!._page;
   }
 
@@ -509,7 +510,7 @@ export class CRBrowserContext extends BrowserContext<CREventsMap> {
       await (sw as CRServiceWorker).updateOffline();
   }
 
-  async doSetHTTPCredentials(httpCredentials?: types.Credentials): Promise<void> {
+  async doSetHTTPCredentials(httpCredentials?: HttpCredentials[]): Promise<void> {
     this._options.httpCredentials = httpCredentials;
     for (const page of this.pages())
       await (page.delegate as CRPage).updateHttpCredentials();
@@ -574,9 +575,6 @@ export class CRBrowserContext extends BrowserContext<CREventsMap> {
       serviceWorker.didClose();
       this._browser._serviceWorkers.delete(targetId);
     }
-  }
-
-  onClosePersistent() {
   }
 
   override async clearCache(): Promise<void> {

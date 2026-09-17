@@ -18,12 +18,14 @@ import fs from 'fs';
 import path from 'path';
 
 import debug from 'debug';
+import { actionInContext, codeframeForLanguage, renderCode, substituteSecrets } from './codegen';
 import { renderModalStates } from './tab';
-import { scaleImageToFitMessage } from './screenshot';
 
 import { outputDir as resolveOutputDir } from './context';
 
 import type * as playwright from '../../..';
+import type * as actions from '@isomorphic/codegen/actions';
+import type { CodeItem } from './codegen';
 import type { TabHeader } from './tab';
 import type { CallToolResult, ImageContent, TextContent } from '@modelcontextprotocol/sdk/types.js';
 import type { Context, FilenameTemplate } from './context';
@@ -36,17 +38,19 @@ type ResolvedFile = {
   printableLink: string;
 };
 
+type SectionContent = string[] | { json: unknown };
+
 type Section = {
   title: string;
-  content: string[];
+  content: SectionContent;
   isError?: boolean;
-  codeframe?: 'yaml' | 'js';
+  codeframe?: 'yaml' | 'js' | 'json' | 'python' | 'java' | 'csharp';
 };
 
 export class Response {
   private _results: string[] = [];
   private _errors: string[] = [];
-  private _code: string[] = [];
+  private _code: CodeItem[] = [];
   private _context: Context;
   private _includeSnapshot: 'none' | 'full' | 'explicit' = 'none';
   private _includeSnapshotFileName: string | undefined;
@@ -58,7 +62,7 @@ export class Response {
   readonly toolName: string;
   readonly toolArgs: Record<string, any>;
   private _clientWorkspace: string;
-  private _imageResults: { data: Buffer, imageType: 'png' | 'jpeg' }[] = [];
+  private _imageResults: { data: Buffer, imageType: 'png' | 'jpeg' | 'webp' }[] = [];
   private _raw: boolean;
   private _json: boolean;
   private _writtenFiles = new Set<string>();
@@ -72,7 +76,9 @@ export class Response {
     this._raw = this._json || (options?.raw ?? false);
   }
 
-  private _computeRelativeTo(fileName: string): string {
+  private _printablePath(fileName: string): string {
+    if (this._context.config.filePaths === 'absolute')
+      return path.resolve(fileName);
     const rel = path.relative(this._clientWorkspace, fileName);
     // Prefix bare filenames with `./` so they're not mistaken for living in
     // the auto-named `.playwright-cli/` artifact directory.
@@ -81,13 +87,14 @@ export class Response {
     return rel;
   }
 
-  async resolveClientFile(template: FilenameTemplate, title: string): Promise<ResolvedFile> {
+  async resolveClientOutputFile(template: FilenameTemplate, title: string): Promise<ResolvedFile> {
     let fileName: string;
     if (template.suggestedFilename)
       fileName = await this.resolveClientFilename(template.suggestedFilename);
     else
       fileName = await this._context.outputFile(template, { origin: 'llm' });
-    const relativeName = this._computeRelativeTo(fileName);
+    await fs.promises.mkdir(path.dirname(fileName), { recursive: true });
+    const relativeName = this._printablePath(fileName);
     const printableLink = `- [${title}](${relativeName})`;
     return { fileName, relativeName, printableLink };
   }
@@ -102,7 +109,7 @@ export class Response {
 
   async addResult(title: string, data: Buffer | string, file: FilenameTemplate) {
     if (file.suggestedFilename || typeof data !== 'string') {
-      const resolvedFile = await this.resolveClientFile(file, title);
+      const resolvedFile = await this.resolveClientOutputFile(file, title);
       await this.addFileResult(resolvedFile, data);
     } else {
       this.addTextResult(data);
@@ -123,11 +130,11 @@ export class Response {
   }
 
   addFileLink(title: string, fileName: string) {
-    const relativeName = this._computeRelativeTo(fileName);
+    const relativeName = this._printablePath(fileName);
     this.addTextResult(`- [${title}](${relativeName})`);
   }
 
-  async registerImageResult(data: Buffer, imageType: 'png' | 'jpeg') {
+  async registerImageResult(data: Buffer, imageType: 'png' | 'jpeg' | 'webp') {
     this._imageResults.push({ data, imageType });
   }
 
@@ -143,15 +150,20 @@ export class Response {
     this._code.push(code);
   }
 
+  addAction(action: actions.Action) {
+    this._code.push(actionInContext(action));
+  }
+
   setIncludeSnapshot() {
     this._includeSnapshot = this._context.config.snapshot?.mode ?? 'full';
+    this._includeSnapshotBoxes = this._context.config.snapshot?.boxes;
   }
 
   setIncludeFullSnapshot(includeSnapshotFileName?: string, root?: playwright.Locator, depth?: number, boxes?: boolean) {
     this._includeSnapshot = 'explicit';
     this._includeSnapshotFileName = includeSnapshotFileName;
     this._includeSnapshotDepth = depth;
-    this._includeSnapshotBoxes = boxes;
+    this._includeSnapshotBoxes = boxes ?? this._context.config.snapshot?.boxes;
     this._includeSnapshotRoot = root;
   }
 
@@ -161,16 +173,21 @@ export class Response {
     const rawSections = ['Error', 'Result', 'Snapshot'] as const;
     const sections = this._raw ? allSections.filter(section => rawSections.includes(section.title as typeof rawSections[number])) : allSections;
 
+    const isError = sections.some(section => section.isError);
     let serializedText: string;
     if (this._json) {
       const payload: Record<string, unknown> = {};
-      const isError = sections.some(section => section.isError);
       if (isError)
         payload.isError = true;
       for (const section of sections) {
+        const key = section.title.toLowerCase();
+        if (!Array.isArray(section.content)) {
+          if (section.content.json !== undefined)
+            payload[key] = section.content.json;
+          continue;
+        }
         if (!section.content.length)
           continue;
-        const key = section.title.toLowerCase();
         if (key === 'snapshot') {
           const match = section.content[0]?.match(/^- \[Snapshot\]\(([^)]+)\)$/);
           payload.snapshot = match ? { file: match[1] } : section.content.join('\n');
@@ -182,41 +199,35 @@ export class Response {
     } else {
       const text: string[] = [];
       for (const section of sections) {
-        if (!section.content.length)
+        const lines = Array.isArray(section.content) ? section.content : (section.content.json === undefined ? [] : [JSON.stringify(section.content.json, null, 2)]);
+        if (!lines.length)
           continue;
         if (!this._raw) {
           text.push(`### ${section.title}`);
           if (section.codeframe)
             text.push(`\`\`\`${section.codeframe}`);
-          text.push(...section.content);
+          text.push(...lines);
           if (section.codeframe)
             text.push('```');
         } else {
-          text.push(...section.content);
+          text.push(...lines);
         }
       }
       serializedText = text.join('\n');
     }
 
-    const content: (TextContent | ImageContent)[] = [
-      {
-        type: 'text',
-        text: sanitizeUnicode(this._context.redactSecrets(serializedText)),
-      }
+    const imageResponses = this._context.config.imageResponses ?? 'allow';
+    const images: ImageContent[] = imageResponses === 'omit' ? [] : this._imageResults.map(imageResult => ({ type: 'image', data: imageResult.data.toString('base64'), mimeType: `image/${imageResult.imageType}` }));
+    const imagesOnly = imageResponses === 'only' && images.length > 0 && !isError;
+    const content: (TextContent | ImageContent)[] = imagesOnly ? images : [
+      { type: 'text', text: sanitizeUnicode(this._context.redactSecrets(serializedText)) },
+      ...images,
     ];
-
-    // Image attachments.
-    if (this._context.config.imageResponses !== 'omit') {
-      for (const imageResult of this._imageResults) {
-        const scaledData = scaleImageToFitMessage(imageResult.data, imageResult.imageType);
-        content.push({ type: 'image', data: scaledData.toString('base64'), mimeType: imageResult.imageType === 'png' ? 'image/png' : 'image/jpeg' });
-      }
-    }
 
     return {
       content,
       ...(this._isClose ? { isClose: true } : {}),
-      ...(sections.some(section => section.isError) ? { isError: true } : {}),
+      ...(isError ? { isError: true } : {}),
     };
   }
 
@@ -253,7 +264,7 @@ export class Response {
 
   private async _build(): Promise<Section[]> {
     const sections: Section[] = [];
-    const addSection = (title: string, content: string[], codeframe?: 'yaml' | 'js') => {
+    const addSection = (title: string, content: SectionContent, codeframe?: Section['codeframe']) => {
       const section = { title, content, isError: title === 'Error', codeframe };
       sections.push(section);
       return content;
@@ -266,11 +277,18 @@ export class Response {
       addSection('Result', this._results);
 
     // Code
-    if (this._context.config.codegen !== 'none' && this._code.length)
-      addSection('Ran Playwright code', this._code, 'js');
+    const codegen = this._context.config.codegen ?? 'typescript';
+    if (codegen !== 'none' && this._code.length) {
+      const code = substituteSecrets(renderCode(this._code, codegen), codegen, Object.keys(this._context.config.secrets ?? {}));
+      addSection('Ran Playwright code', code, codeframeForLanguage(codegen));
+    }
 
     // Render tab titles upon changes or when more than one tab.
-    const tabSnapshot = this._context.currentTab() ? await this._context.currentTabOrDie().captureSnapshot(this._includeSnapshotRoot, this._includeSnapshotDepth, this._includeSnapshotBoxes, this._clientWorkspace) : undefined;
+    const snapshotToFile = this._includeSnapshot !== 'explicit' || !!this._includeSnapshotFileName;
+    const ariaFormat = this._includeSnapshot === 'none' ? 'none' : (this._json && !snapshotToFile ? 'json' : 'text');
+    const updateWebMCP = this._includeSnapshot !== 'none'; // Collect the page's WebMCP tools whenever a snapshot is taken anyway.
+    const logRelativeTo = this._context.config.filePaths === 'absolute' ? undefined : this._clientWorkspace;
+    const tabSnapshot = this._context.currentTab() ? await this._context.currentTabOrDie().captureSnapshot(this._includeSnapshotRoot, this._includeSnapshotDepth, this._includeSnapshotBoxes, logRelativeTo, ariaFormat, updateWebMCP) : undefined;
     const tabHeaders = await Promise.all(this._context.tabs().map(tab => tab.headerSnapshot()));
     if (this._includeSnapshot !== 'none' || tabHeaders.some(header => header.changed)) {
       if (tabHeaders.length !== 1)
@@ -284,11 +302,13 @@ export class Response {
 
     // Handle tab snapshot
     if (tabSnapshot && this._includeSnapshot !== 'none') {
-      if (this._includeSnapshot !== 'explicit' || this._includeSnapshotFileName) {
+      if (snapshotToFile) {
         const suggestedFilename = this._includeSnapshotFileName === '<auto>' ? undefined : this._includeSnapshotFileName;
-        const resolvedFile = await this.resolveClientFile({ prefix: 'page', ext: 'yml', suggestedFilename }, 'Snapshot');
+        const resolvedFile = await this.resolveClientOutputFile({ prefix: 'page', ext: 'yml', suggestedFilename }, 'Snapshot');
         await this._writeFile(resolvedFile, tabSnapshot.ariaSnapshot);
         addSection('Snapshot', [resolvedFile.printableLink]);
+      } else if (tabSnapshot.ariaSnapshotJSON !== undefined) {
+        addSection('Snapshot', { json: tabSnapshot.ariaSnapshotJSON }, 'json');
       } else {
         addSection('Snapshot', [tabSnapshot.ariaSnapshot], 'yaml');
       }
@@ -303,7 +323,7 @@ export class Response {
         if (event.type === 'download-start')
           text.push(`- Downloading file ${event.download.download.suggestedFilename()} ...`);
         else if (event.type === 'download-finish')
-          text.push(`- Downloaded file ${event.download.download.suggestedFilename()} to "${this._computeRelativeTo(event.download.outputFile)}"`);
+          text.push(`- Downloaded file ${event.download.download.suggestedFilename()} to "${this._printablePath(event.download.outputFile)}"`);
       }
     }
     if (text.length)
@@ -312,7 +332,7 @@ export class Response {
     const pausedDetails = this._context.debugger().pausedDetails();
     if (pausedDetails) {
       addSection('Paused', [
-        `- ${pausedDetails.title} at ${this._computeRelativeTo(pausedDetails.location.file)}${pausedDetails.location.line ? ':' + pausedDetails.location.line : ''}`,
+        `- ${pausedDetails.title} at ${this._printablePath(pausedDetails.location.file)}${pausedDetails.location.line ? ':' + pausedDetails.location.line : ''}`,
         '- Use any tools to explore and interact, resume by calling resume/step-over/pause-at',
       ]);
     }
@@ -326,8 +346,13 @@ export function renderTabMarkdown(tab: TabHeader): string[] {
     lines.push(`- Page Title: ${tab.title}`);
   if (tab.crashed)
     lines.push(`- Page status: crashed`);
+  const status = tab.mainDocumentStatus;
+  if (status && (status.status < 200 || status.status >= 300))
+    lines.push(`- HTTP status: ${status.status}${status.statusText ? ' ' + status.statusText : ''}`);
   if (tab.console.errors || tab.console.warnings)
     lines.push(`- Console: ${tab.console.errors} errors, ${tab.console.warnings} warnings`);
+  if (tab.webmcpToolCount)
+    lines.push(`- ${tab.webmcpToolCount} webmcp tool${tab.webmcpToolCount === 1 ? '' : 's'} available on the page`);
   return lines;
 }
 
@@ -395,7 +420,7 @@ export function parseResponse(response: CallToolResult, cwd?: string) {
   const events = sections.get('Events');
   const modalState = sections.get('Modal state');
   const paused = sections.get('Paused');
-  const codeNoFrame = code?.replace(/^```js\n/, '').replace(/\n```$/, '');
+  const codeNoFrame = code?.replace(/^```(?:js|python|java|csharp)\n/, '').replace(/\n```$/, '');
   const isError = response.isError;
   const attachments = response.content.length > 1 ? response.content.slice(1) : undefined;
 

@@ -1027,6 +1027,24 @@ it('should click in an iframe with border 2', async ({ page }) => {
   expect(await page.evaluate('window._clicked')).toBe(true);
 });
 
+it('should not retain removed iframe after clicking inside it', async ({ page, isAndroid }) => {
+  it.skip(isAndroid, 'requesting gc is not enough');
+
+  await page.setContent('<iframe srcdoc="<button>Click</button>"></iframe>');
+  const button = page.frameLocator('iframe').getByRole('button');
+  await button.waitFor();
+  await page.evaluate(() => {
+    (window as any).iframeRef = new WeakRef(document.querySelector('iframe')!);
+  });
+  await button.click();
+  await page.evaluate(() => document.querySelector('iframe')!.remove());
+  // Move the mouse away to release Chromium's own last-hovered-node retention.
+  await page.mouse.move(500, 500);
+  await page.requestGC();
+  const retained = await page.evaluate(() => Boolean((window as any).iframeRef.deref()));
+  expect(retained).toBe(false);
+});
+
 it('should click in a transformed iframe', async ({ page }) => {
   await page.setContent(`
     <style>
@@ -1215,12 +1233,23 @@ it('should fire contextmenu event on right click in correct order', async ({ pag
   const entries = [];
   page.on('console', message => entries.push(message.text()));
   await page.getByRole('button', { name: 'Click me' }).click({ button: 'right' });
-  if (browserName === 'webkit')
-    await expect.poll(() => entries).toEqual(['mousedown', 'contextmenu']);
-  else if (browserName === 'chromium' && isWindows)
+  if (browserName === 'chromium' && isWindows)
     await expect.poll(() => entries).toEqual(['mousedown', 'mouseup', 'contextmenu']);
   else
     await expect.poll(() => entries).toEqual(['mousedown', 'contextmenu', 'mouseup']);
+});
+
+it('should click after a right click', { annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/39246' } }, async ({ page }) => {
+  await page.setContent(`
+    <button>Click me</button>
+    <script>
+      const button = document.querySelector('button');
+      button.addEventListener('click', () => button.textContent = 'Clicked!');
+    </script>
+  `);
+  await page.getByRole('button').click({ button: 'right' });
+  await page.getByRole('button').click();
+  await expect(page.getByRole('button')).toHaveText('Clicked!');
 });
 
 it('should set PointerEvent.pressure on pointerdown', async ({ page, isLinux, headless }) => {
@@ -1357,11 +1386,11 @@ it('should abort via signal', async ({ page }) => {
   // Give the action time to start and emit call log entries before aborting.
   await page.waitForTimeout(500);
 
-  const reason = new Error('Aborted by user');
+  const reason = new Error('foo bar');
   controller.abort(reason);
   const error = await promise;
-  expect(error.message).toContain('The operation was aborted');
-  expect(error.message).toContain(`Call log:`);
+  expect(error.message).toContain('locator.click: foo bar');
+  expect(error.message).toMatch(/Call log:[\s\S]*operation was aborted: foo bar/);
   expect(error.name).toBe('AbortError');
   expect(error.cause).toBe(reason);
 });
@@ -1373,6 +1402,7 @@ it('should throw an Error when aborted in-flight with a string reason', async ({
   controller.abort('aborted by user');
   const error = await promise.catch(e => e);
   expect(error).toBeInstanceOf(Error);
+  expect(error.message).toContain('locator.click: aborted by user');
   expect(error.name).toBe('AbortError');
   expect(error.cause).toBe('aborted by user');
 });

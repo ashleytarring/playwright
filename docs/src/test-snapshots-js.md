@@ -50,6 +50,12 @@ The snapshot name `example-test-1-chromium-darwin.png` consists of a few parts:
 
 The snapshot name and path can be configured with [`property: TestConfig.snapshotPathTemplate`] in the playwright config.
 
+Snapshots are stored as PNG by default. Give the snapshot a name with the `.webp` extension to store it in the WebP format instead, it is also lossless:
+
+```js
+await expect(page).toHaveScreenshot('landing.webp');
+```
+
 > Note that `toHaveScreenshot()` also accepts an array of path segments to the snapshot file such as `expect().toHaveScreenshot(['relative', 'path', 'to', 'snapshot.png'])`.
 > However, this path must stay within the snapshots directory for each test file (i.e. `a.spec.js-snapshots`), otherwise it will throw.
 
@@ -59,6 +65,15 @@ Sometimes you need to update the reference screenshot, for example when the page
 
 ```bash
 npx playwright test --update-snapshots
+```
+
+## Hover effects
+
+Screenshots capture any hover effects present in the page at the moment. To avoid hover effects, move the mouse to a position that does not trigger them, or hover an element that has no effects, before taking the screenshot:
+
+```js
+await page.mouse.move(-1, -1);
+await expect(page).toHaveScreenshot();
 ```
 
 ## Options

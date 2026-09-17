@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { renderTitleForCall } from '@isomorphic/protocolFormatter';
+import { renderFullTitleForCall } from '@isomorphic/protocolFormatter';
 import { ExpectError, Frame } from '../frames';
 import { Dispatcher } from './dispatcher';
 import { ElementHandleDispatcher } from './elementHandlerDispatcher';
@@ -82,11 +82,11 @@ export class FrameDispatcher extends Dispatcher<Frame, channels.FrameChannel, Br
   }
 
   async evaluateExpression(params: channels.FrameEvaluateExpressionParams, progress: Progress): Promise<channels.FrameEvaluateExpressionResult> {
-    return { value: serializeResult(await this._frame.evaluateExpression(progress, params.expression, { isFunction: params.isFunction }, parseArgument(params.arg))) };
+    return { value: serializeResult(await this._frame.evaluateExpression(progress, params.expression, { isFunction: params.isFunction, world: params.world, serialize: params.serialize }, parseArgument(params.arg)), params) };
   }
 
   async evaluateExpressionHandle(params: channels.FrameEvaluateExpressionHandleParams, progress: Progress): Promise<channels.FrameEvaluateExpressionHandleResult> {
-    return { handle: ElementHandleDispatcher.fromJSOrElementHandle(this, await this._frame.evaluateExpressionHandle(progress, params.expression, { isFunction: params.isFunction }, parseArgument(params.arg))) };
+    return { handle: ElementHandleDispatcher.fromJSOrElementHandle(this, await this._frame.evaluateExpressionHandle(progress, params.expression, { isFunction: params.isFunction, serialize: params.serialize }, parseArgument(params.arg))) };
   }
 
   async waitForSelector(params: channels.FrameWaitForSelectorParams, progress: Progress): Promise<channels.FrameWaitForSelectorResult> {
@@ -98,11 +98,11 @@ export class FrameDispatcher extends Dispatcher<Frame, channels.FrameChannel, Br
   }
 
   async evalOnSelector(params: channels.FrameEvalOnSelectorParams, progress: Progress): Promise<channels.FrameEvalOnSelectorResult> {
-    return { value: serializeResult(await this._frame.evalOnSelector(progress, params.selector, !!params.strict, params.expression, params.isFunction, parseArgument(params.arg))) };
+    return { value: serializeResult(await this._frame.evalOnSelector(progress, params.selector, !!params.strict, params.expression, { isFunction: params.isFunction, world: params.world }, parseArgument(params.arg))) };
   }
 
   async evalOnSelectorAll(params: channels.FrameEvalOnSelectorAllParams, progress: Progress): Promise<channels.FrameEvalOnSelectorAllResult> {
-    return { value: serializeResult(await this._frame.evalOnSelectorAll(progress, params.selector, params.expression, params.isFunction, parseArgument(params.arg))) };
+    return { value: serializeResult(await this._frame.evalOnSelectorAll(progress, params.selector, params.expression, { isFunction: params.isFunction, world: params.world }, parseArgument(params.arg))) };
   }
 
   async querySelector(params: channels.FrameQuerySelectorParams, progress: Progress): Promise<channels.FrameQuerySelectorResult> {
@@ -115,7 +115,7 @@ export class FrameDispatcher extends Dispatcher<Frame, channels.FrameChannel, Br
   }
 
   async queryCount(params: channels.FrameQueryCountParams, progress: Progress): Promise<channels.FrameQueryCountResult> {
-    return { value: await this._frame.queryCount(progress, params.selector, params) };
+    return { value: await this._frame.queryCount(progress, params.selector) };
   }
 
   async content(params: channels.FrameContentParams, progress: Progress): Promise<channels.FrameContentResult> {
@@ -136,6 +136,10 @@ export class FrameDispatcher extends Dispatcher<Frame, channels.FrameChannel, Br
 
   async ariaSnapshot(params: channels.FrameAriaSnapshotParams, progress: Progress): Promise<channels.FrameAriaSnapshotResult> {
     return await this._frame.ariaSnapshot(progress, params);
+  }
+
+  async ariaSnapshotJSON(params: channels.FrameAriaSnapshotJSONParams, progress: Progress): Promise<channels.FrameAriaSnapshotJSONResult> {
+    return await this._frame.ariaSnapshotJSON(progress, params);
   }
 
   async click(params: channels.FrameClickParams, progress: Progress): Promise<void> {
@@ -255,11 +259,11 @@ export class FrameDispatcher extends Dispatcher<Frame, channels.FrameChannel, Br
   }
 
   async waitForFunction(params: channels.FrameWaitForFunctionParams, progress: Progress): Promise<channels.FrameWaitForFunctionResult> {
-    const handle = await this._frame.waitForFunctionExpression(progress, params.expression, params.isFunction, parseArgument(params.arg), params);
     if (params.selector !== undefined) {
-      handle.dispose();
+      await this._frame.waitForFunctionExpressionOnElement(progress, params.selector, params.expression, params.isFunction, parseArgument(params.arg), { strict: params.strict });
       return {};
     }
+    const handle = await this._frame.waitForFunctionExpression(progress, params.expression, params.isFunction, parseArgument(params.arg), params);
     return { handle: ElementHandleDispatcher.fromJSOrElementHandle(this, handle) };
   }
 
@@ -268,15 +272,15 @@ export class FrameDispatcher extends Dispatcher<Frame, channels.FrameChannel, Br
   }
 
   async highlight(params: channels.FrameHighlightParams, progress: Progress): Promise<void> {
-    return await this._frame.addHighlight(progress, params.selector, params.style);
+    return await progress.race(this._frame._page.highlightController.addHighlight(params.selector, { style: params.style }));
   }
 
   async hideHighlight(params: channels.FrameHideHighlightParams, progress: Progress): Promise<void> {
-    return await this._frame.removeHighlight(progress, params.selector);
+    return await progress.race(this._frame._page.highlightController.removeHighlight(params.selector));
   }
 
   async expect(params: channels.FrameExpectParams, progress: Progress): Promise<channels.FrameExpectResult> {
-    progress.log(`${renderTitleForCall(progress.metadata)}${params.timeout ? ` with timeout ${params.timeout}ms` : ''}`);
+    progress.log(`${renderFullTitleForCall(progress.metadata, this._frame._page.browserContext._browser.sdkLanguage())}${progress.timeout ? ` with timeout ${progress.timeout}ms` : ''}`);
     const expectedValue = params.expectedValue ? parseArgument(params.expectedValue) : undefined;
     try {
       await this._frame.expect(progress, params.selector, { ...params, expectedValue });

@@ -3,69 +3,40 @@
   "browsers": [
     {
       "name": "chromium",
-      "revision": "1231",
+      "revision": "1245",
       "installByDefault": true,
-      "browserVersion": "150.0.7871.46",
+      "browserVersion": "154.0.8037.0",
       "title": "Chrome for Testing"
     },
     {
       "name": "chromium-headless-shell",
-      "revision": "1231",
+      "revision": "1245",
       "installByDefault": true,
-      "browserVersion": "150.0.7871.46",
+      "browserVersion": "154.0.8037.0",
       "title": "Chrome Headless Shell"
     },
     {
-      "name": "chromium-tip-of-tree",
-      "revision": "1433",
-      "installByDefault": false,
-      "browserVersion": "151.0.7893.0",
-      "title": "Chrome Canary for Testing"
-    },
-    {
-      "name": "chromium-tip-of-tree-headless-shell",
-      "revision": "1433",
-      "installByDefault": false,
-      "browserVersion": "151.0.7893.0",
-      "title": "Chrome Canary Headless Shell"
-    },
-    {
       "name": "firefox",
-      "revision": "1533",
+      "revision": "1548",
       "installByDefault": true,
-      "browserVersion": "151.0",
+      "browserVersion": "155.0",
       "title": "Firefox"
     },
     {
-      "name": "firefox-beta",
-      "revision": "1526",
-      "installByDefault": false,
-      "browserVersion": "152.0b1",
-      "title": "Firefox Beta"
-    },
-    {
       "name": "webkit",
-      "revision": "2317",
+      "revision": "2364",
       "installByDefault": true,
       "revisionOverrides": {
         "mac14": "2251",
-        "mac14-arm64": "2251",
-        "debian11-x64": "2105",
-        "debian11-arm64": "2105",
-        "ubuntu20.04-x64": "2092",
-        "ubuntu20.04-arm64": "2092"
+        "mac14-arm64": "2251"
       },
-      "browserVersion": "26.5",
+      "browserVersion": "26.6",
       "title": "WebKit"
     },
     {
       "name": "ffmpeg",
       "revision": "1011",
-      "installByDefault": true,
-      "revisionOverrides": {
-        "mac12": "1010",
-        "mac12-arm64": "1010"
-      }
+      "installByDefault": true
     },
     {
       "name": "winldd",

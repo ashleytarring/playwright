@@ -28,7 +28,7 @@ import { ZipFile } from '@utils/zipFile';
 import { removeFolders, resolveWithinRoot } from '@utils/fileUtils';
 import { HarBackend } from './harBackend';
 import type * as channels from './channels';
-import type * as har from '@trace/har';
+import type * as har from '@isomorphic/trace/versions/har';
 import type EventEmitter from 'events';
 import type { Progress } from './progress';
 
@@ -75,7 +75,7 @@ export async function zip(progress: Progress, stackSessions: Map<string, StackSe
         sourceFiles.add(file);
     }
     for (const sourceFile of sourceFiles)
-      addFile(sourceFile, 'resources/src@' + calculateSha1(sourceFile) + '.txt');
+      addFile(sourceFile, 'src/' + calculateSha1(sourceFile) + path.extname(sourceFile));
   }
 
   if (params.mode === 'write') {
@@ -148,16 +148,9 @@ async function deleteStackSession(progress: Progress, stackSessions: Map<string,
 }
 
 export async function harOpen(progress: Progress, harBackends: Map<string, HarBackend>, params: channels.LocalUtilsHarOpenParams): Promise<channels.LocalUtilsHarOpenResult> {
-  const result = await openHarBackend(progress, params.file);
-  if ('error' in result)
-    return { error: result.error };
-  harBackends.set(result.harBackend.id, result.harBackend);
-  return { harId: result.harBackend.id };
-}
-
-export async function openHarBackend(progress: Progress, file: string): Promise<{ harBackend: HarBackend } | { error: string }> {
-  if (file.endsWith('.zip')) {
-    const zipFile = new ZipFile(file);
+  let harBackend: HarBackend;
+  if (params.file.endsWith('.zip')) {
+    const zipFile = new ZipFile(params.file);
     try {
       const entryNames = await progress.race(zipFile.entries());
       const harEntryName = entryNames.find(e => e.endsWith('.har'));
@@ -165,14 +158,17 @@ export async function openHarBackend(progress: Progress, file: string): Promise<
         return { error: 'Specified archive does not have a .har file' };
       const har = await progress.race(zipFile.read(harEntryName));
       const harFile = JSON.parse(har.toString()) as har.HARFile;
-      return { harBackend: new HarBackend(harFile, null, zipFile) };
+      harBackend = new HarBackend(harFile, null, zipFile);
     } catch (error) {
       zipFile.close();
       throw error;
     }
+  } else {
+    const harFile = JSON.parse(await progress.race(fs.promises.readFile(params.file, 'utf-8'))) as har.HARFile;
+    harBackend = new HarBackend(harFile, path.dirname(params.file), null);
   }
-  const harFile = JSON.parse(await progress.race(fs.promises.readFile(file, 'utf-8'))) as har.HARFile;
-  return { harBackend: new HarBackend(harFile, path.dirname(file), null) };
+  harBackends.set(harBackend.id, harBackend);
+  return { harId: harBackend.id };
 }
 
 export async function harLookup(progress: Progress, harBackends: Map<string, HarBackend>, params: channels.LocalUtilsHarLookupParams): Promise<channels.LocalUtilsHarLookupResult> {

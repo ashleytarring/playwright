@@ -15,17 +15,18 @@
  */
 
 import { parseAriaSnapshot } from '@isomorphic/ariaSnapshot';
+import { renderAriaSnapshotAsYaml } from '@isomorphic/ariaSnapshotRenderer';
 import { asLocator } from '@isomorphic/locatorGenerators';
 import { splitTestIdAttributeNames } from '@isomorphic/locatorUtils';
 import { parseAttributeSelector, parseSelector, stringifySelector, visitAllSelectorParts } from '@isomorphic/selectorParser';
 import { cacheNormalizedWhitespaces, normalizeWhiteSpace, trimStringWithEllipsis } from '@isomorphic/stringUtils';
 
-import { generateAriaTree, getAllElementsMatchingExpectAriaTemplate, matchesExpectAriaTemplate, renderAriaTree, findNewElement } from './ariaSnapshot';
+import { generateAriaTree, getAllElementsMatchingExpectAriaTemplate, matchesExpectAriaTemplate, renderAriaTreeAsJSON, findNewElement } from './ariaSnapshot';
 import { beginDOMCaches, enclosingShadowRootOrDocument, endDOMCaches, isElementVisible, isInsideScope, parentElementOrShadowHost, setGlobalOptions } from './domUtils';
 import { Highlight } from './highlight';
 import { kLayoutSelectorNames, layoutSelectorScore } from './layoutSelectorUtils';
 import { createRoleEngine } from './roleSelectorEngine';
-import { beginAriaCaches, endAriaCaches, getAriaDisabled, getAriaRole, getCheckedAllowMixed, getCheckedWithoutMixed, getElementAccessibleDescription, getElementAccessibleErrorMessage, getElementAccessibleName, getReadonly } from './roleUtils';
+import { beginAriaCaches, endAriaCaches, getAriaDisabled, getAriaRole, getCheckedAllowMixed, getCheckedWithoutMixed, getElementAccessibleDescription, getElementAccessibleErrorMessage, getElementAccessibleNameText, getReadonly } from './roleUtils';
 import { SelectorEvaluatorImpl, sortInDOMOrder } from './selectorEvaluator';
 import { generateSelector } from './selectorGenerator';
 import { elementMatchesText, elementText, getElementLabels } from './selectorUtils';
@@ -33,7 +34,7 @@ import { XPathEngine } from './xpathSelectorEngine';
 import { ConsoleAPI } from './consoleApi';
 import { UtilityScript } from './utilityScript';
 
-import type { AriaTemplateNode } from '@isomorphic/ariaSnapshot';
+import type { AriaSnapshotJSON, AriaTemplateNode } from '@isomorphic/ariaSnapshot';
 import type { CSSComplexSelectorList } from '@isomorphic/cssParser';
 import type { Language } from '@isomorphic/locatorGenerators';
 import type { AttributeSelectorPart, NestedSelectorBody, ParsedSelector, ParsedSelectorPart } from '@isomorphic/selectorParser';
@@ -78,6 +79,7 @@ interface WebKitLegacyDeviceMotionEvent extends DeviceMotionEvent {
 export type InjectedScriptOptions = {
   isUnderTest: boolean;
   sdkLanguage: Language;
+  frameSeq: number;
   // For strict error and codegen
   testIdAttributeName: string;
   stableRafCount: number;
@@ -99,11 +101,11 @@ export class InjectedScript {
   private _highlight: Highlight | undefined;
   readonly isUnderTest: boolean;
   private _sdkLanguage: Language;
+  private _frameSeq: number;
   private _testIdAttributeNameForStrictErrorAndConsoleCodegen: string = 'data-testid';
   readonly window: Window & typeof globalThis;
   readonly document: Document;
   readonly consoleApi: ConsoleAPI;
-  private _lastAriaSnapshotForTrack = new Map<string, AriaSnapshot>();
   private _lastAriaSnapshotForQuery: AriaSnapshot | undefined;
 
   // Recorder must use any external dependencies through InjectedScript.
@@ -114,8 +116,8 @@ export class InjectedScript {
     cacheNormalizedWhitespaces,
     elementText,
     getAriaRole,
+    getElementAccessibleNameText,
     getElementAccessibleDescription,
-    getElementAccessibleName,
     isElementVisible,
     isInsideScope,
     normalizeWhiteSpace,
@@ -142,6 +144,7 @@ export class InjectedScript {
     // inside a trace viewer snapshot, where "window" differs from "globalThis".
     this.utils.builtins = new UtilityScript(window, options.isUnderTest).builtins;
     this._sdkLanguage = options.sdkLanguage;
+    this._frameSeq = options.frameSeq;
     this._testIdAttributeNameForStrictErrorAndConsoleCodegen = options.testIdAttributeName;
     this._evaluator = new SelectorEvaluatorImpl();
     this.consoleApi = new ConsoleAPI(this);
@@ -240,6 +243,7 @@ export class InjectedScript {
     this._engines.set('internal:role', createRoleEngine(true));
     this._engines.set('internal:describe', this._createDescribeEngine());
     this._engines.set('aria-ref', this._createAriaRefEngine());
+    this._engines.set('aria-template', this._createAriaTemplateEngine());
 
     for (const { name, source } of options.customEngines)
       this._engines.set(name, this.eval(source));
@@ -313,29 +317,31 @@ export class InjectedScript {
   }
 
   ariaSnapshot(node: Node, options: AriaTreeOptions): string {
-    return this.incrementalAriaSnapshot(node, options).full;
+    const { json } = this.ariaSnapshotJSON(node, options);
+    return renderAriaSnapshotAsYaml(json, { convertStringsToRegex: options.mode === 'codegen' });
   }
 
-  incrementalAriaSnapshot(node: Node, options: AriaTreeOptions & { track?: string, depth?: number }): { full: string, incremental?: string, iframeRefs: string[], iframeDepths: Record<string, number> } {
+  ariaSnapshotJSON(node: Node, options: AriaTreeOptions & { depth?: number }): { json: AriaSnapshotJSON, iframeRefs: string[], iframeDepths: Record<string, number> } {
     if (node.nodeType !== Node.ELEMENT_NODE)
       throw this.createStacklessError('Can only capture aria snapshot of Element nodes.');
+    options = { ...options, refPrefix: this._frameSeq && options.mode === 'ai' ? 'f' + this._frameSeq : '' };
     const ariaSnapshot = generateAriaTree(node as Element, options);
-    const rendered = renderAriaTree(ariaSnapshot, options);
-    let incremental: string | undefined;
-    if (options.track) {
-      const previousSnapshot = this._lastAriaSnapshotForTrack.get(options.track);
-      if (previousSnapshot)
-        incremental = renderAriaTree(ariaSnapshot, options, previousSnapshot).text;
-      this._lastAriaSnapshotForTrack.set(options.track, ariaSnapshot);
-    }
+    const rendered = renderAriaTreeAsJSON(ariaSnapshot, options);
     this._lastAriaSnapshotForQuery = ariaSnapshot;
-    return { full: rendered.text, incremental, iframeRefs: ariaSnapshot.iframeRefs, iframeDepths: rendered.iframeDepths };
+    return { json: rendered.json, iframeRefs: ariaSnapshot.iframeRefs, iframeDepths: rendered.iframeDepths };
   }
 
   ariaSnapshotForRecorder(): { ariaSnapshot: string, refs: Map<Element, string> } {
     const tree = generateAriaTree(this.document.body, { mode: 'ai' });
-    const { text: ariaSnapshot } = renderAriaTree(tree, { mode: 'ai' });
-    return { ariaSnapshot, refs: tree.refs };
+    const { json } = renderAriaTreeAsJSON(tree, { mode: 'ai' });
+    return { ariaSnapshot: renderAriaSnapshotAsYaml(json), refs: tree.refs };
+  }
+
+  ariaSnapshotForExpectFailure(element: Element, options: AriaTreeOptions): string {
+    // Bypass _lastAriaSnapshotForQuery — that cache is reserved for explicit
+    // ariaSnapshot() calls used by the aria-ref selector engine.
+    const { json } = renderAriaTreeAsJSON(generateAriaTree(element, options), options);
+    return renderAriaSnapshotAsYaml(json);
   }
 
   getAllElementsMatchingExpectAriaTemplate(document: Document, template: AriaTemplateNode): Element[] {
@@ -537,6 +543,8 @@ export class InjectedScript {
       queryAll(root: SelectorRoot, body: any) {
         if (body === 'enter-frame')
           return [];
+        if (body === 'any-frame')
+          return [];
         if (body === 'return-empty')
           return [];
         if (body === 'component') {
@@ -728,8 +736,19 @@ export class InjectedScript {
 
   _createAriaRefEngine() {
     const queryAll = (root: SelectorRoot, selector: string): Element[] => {
-      const result = this._lastAriaSnapshotForQuery?.elements?.get(selector);
-      return result && result.isConnected ? [result] : [];
+      const result = this._lastAriaSnapshotForQuery?.info?.get(selector);
+      return result && result.element.isConnected ? [result.element] : [];
+    };
+    return { queryAll };
+  }
+
+  _createAriaTemplateEngine() {
+    const queryAll = (root: SelectorRoot, body: string): Element[] => {
+      const template = JSON.parse(body) as AriaTemplateNode;
+      const rootElement = root.nodeType === 9 /* Node.DOCUMENT_NODE */ ? (root as Document).documentElement : root as Element;
+      if (!rootElement)
+        return [];
+      return getAllElementsMatchingExpectAriaTemplate(rootElement, template);
     };
     return { queryAll };
   }
@@ -1113,7 +1132,7 @@ export class InjectedScript {
     }[action];
     let result: 'done' | { hitTargetDescription: string } | undefined;
 
-    const listener = (event: PointerEvent | MouseEvent | TouchEvent) => {
+    let listener: ((event: PointerEvent | MouseEvent | TouchEvent) => void) | undefined = (event: PointerEvent | MouseEvent | TouchEvent) => {
       // Ignore events that we do not expect to intercept.
       if (!events.has(event.type))
         return;
@@ -1142,6 +1161,7 @@ export class InjectedScript {
     const stop = () => {
       if (this._hitTargetInterceptor === listener)
         this._hitTargetInterceptor = undefined;
+      listener = undefined;
       // If we did not get any events, consider things working. Possible causes:
       // - JavaScript is disabled (webkit-only).
       // - Some <iframe> overlays the element from another frame.
@@ -1311,38 +1331,24 @@ export class InjectedScript {
     return new Highlight(this);
   }
 
-  maskSelectors(selectors: ParsedSelector[], color: string) {
-    const highlight = this._createHighlight();
-    const elements = [];
-    for (const selector of selectors)
-      elements.push(this.querySelectorAll(selector, this.document.documentElement));
-    highlight.maskElements(elements.flat(), color);
+  addMaskedElements(elements: Element[], color: string) {
+    const highlight = this._ensureHighlight();
+    highlight.addMaskedElements(elements, color);
   }
 
-  private _createHighlight() {
-    if (this._highlight)
-      this.hideHighlight();
-    this._highlight = new Highlight(this);
+  private _ensureHighlight() {
+    if (!this._highlight)
+      this._highlight = new Highlight(this);
+
     this._highlight.install();
     return this._highlight;
   }
 
-  private _ensureHighlight() {
-    if (!this._highlight) {
-      this._highlight = new Highlight(this);
-      this._highlight.install();
-    }
-    return this._highlight;
-  }
-
-  addHighlight(selector: ParsedSelector, style?: string) {
+  setHighlights(highlights: { selector: ParsedSelector, cssStyle?: string }[]) {
+    if (!highlights.length && !this._highlight)
+      return;
     const highlight = this._ensureHighlight();
-    highlight.addElementHighlight(selector, style);
-  }
-
-  removeHighlight(selector: ParsedSelector) {
-    const highlight = this._ensureHighlight();
-    highlight.removeElementHighlight(selector);
+    highlight.setElementHighlights(highlights);
   }
 
   setScreencastAnnotation(annotation: { point?: Point, box?: Rect, actionTitle?: string, duration?: number, position?: string, fontSize?: number, cursor?: 'none' | 'pointer' } | null) {
@@ -1452,85 +1458,44 @@ export class InjectedScript {
     this.onGlobalListenersRemoved.add(addHitTargetInterceptorListeners);
   }
 
-  async expect(element: Element | undefined, options: FrameExpectParams, elements: Element[]): Promise<{ matches: boolean, received?: ExpectReceived, missingReceived?: boolean }> {
-    const core = await this._expectCore(element, options, elements);
+  async expect(element: Element, options: FrameExpectParams, elements: Element[]): Promise<{ matches: boolean, received?: ExpectReceived }> {
+    const isArray = options.expression === 'to.have.count' || options.expression.endsWith('.array');
+    const core = isArray ? this.expectArray(elements, options) : await this.expectSingleElement(element, options);
     const ariaSnapshot = core.matches !== options.isNot ? undefined : this._ariaSnapshotForExpect(element, options);
     if (core.received === undefined && ariaSnapshot === undefined)
-      return { matches: core.matches, missingReceived: core.missingReceived };
-    return { matches: core.matches, received: { value: core.received, ariaSnapshot }, missingReceived: core.missingReceived };
+      return { matches: core.matches };
+    return { matches: core.matches, received: { value: core.received, ariaSnapshot } };
   }
 
-  private _ariaSnapshotForExpect(element: Element | undefined, options: FrameExpectParams): string | undefined {
+  private _ariaSnapshotForExpect(element: Element, options: FrameExpectParams): string | undefined {
     const expression = options.expression;
-    if (expression === 'to.have.count' || expression.endsWith('.array'))
+    if (expression === 'to.have.count' || expression.endsWith('.array') || expression === 'to.match.aria')
       return undefined;
-    if (expression === 'to.match.aria')
-      return undefined;
-    if (element && isElementVisible(element)) {
+    if (isElementVisible(element) && expression !== 'to.have.title' && expression !== 'to.have.url') {
       // Element-scoped snapshot. Containment matchers want the full subtree;
       // property matchers only need the element's own line.
       const isContainment = expression === 'to.have.text';
-      return this._renderAriaSnapshot(element, { mode: 'default', depth: isContainment ? undefined : 1 });
+      return this.ariaSnapshotForExpectFailure(element, { mode: 'default', depth: isContainment ? undefined : 1 });
     }
-    // Element missing or hidden — fall back to a full-page snapshot for context.
     if (!this.document.body)
       return undefined;
-    return this._renderAriaSnapshot(this.document.body, { mode: 'default' });
-  }
-
-  private _renderAriaSnapshot(element: Element, options: AriaTreeOptions): string {
-    // Bypass _lastAriaSnapshotForQuery — that cache is reserved for explicit
-    // ariaSnapshot() calls used by the aria-ref selector engine.
-    return renderAriaTree(generateAriaTree(element, options), options).text;
-  }
-
-  private async _expectCore(element: Element | undefined, options: FrameExpectParams, elements: Element[]): Promise<{ matches: boolean, received?: any, missingReceived?: boolean }> {
-    const isArray = options.expression === 'to.have.count' || options.expression.endsWith('.array');
-    if (isArray)
-      return this.expectArray(elements, options);
-    if (!element) {
-      // expect(locator).toBeHidden() passes when there is no element.
-      if (!options.isNot && options.expression === 'to.be.hidden')
-        return { matches: true };
-      // expect(locator).not.toBeVisible() passes when there is no element.
-      if (options.isNot && options.expression === 'to.be.visible')
-        return { matches: false };
-      // expect(locator).toBeAttached({ attached: false }) passes when there is no element.
-      if (!options.isNot && options.expression === 'to.be.detached')
-        return { matches: true };
-      // expect(locator).not.toBeAttached() passes when there is no element.
-      if (options.isNot && options.expression === 'to.be.attached')
-        return { matches: false };
-      // expect(locator).not.toBeInViewport() passes when there is no element.
-      if (options.isNot && options.expression === 'to.be.in.viewport')
-        return { matches: false };
-      if (options.expression === 'to.have.title' && options?.expectedText?.[0]) {
-        const matcher = new ExpectedTextMatcher(options.expectedText[0]);
-        const received = this.document.title;
-        return { received, matches: matcher.matches(received) };
-      }
-      if (options.expression === 'to.have.url' && options?.expectedText?.[0]) {
-        const matcher = new ExpectedTextMatcher(options.expectedText[0]);
-        const received = this.document.location.href;
-        return { received, matches: matcher.matches(received) };
-      }
-      if (options.expression === 'to.match.aria' && !options.selector) {
-        if (!this.document.body)
-          return { matches: options.isNot, missingReceived: true };
-        const result = matchesExpectAriaTemplate(this.document.body, options.expectedValue);
-        return {
-          received: result.received,
-          matches: !!result.matches.length,
-        };
-      }
-      // When none of the above applies, expect does not match.
-      return { matches: options.isNot, missingReceived: true };
-    }
-    return await this.expectSingleElement(element, options);
+    return this.ariaSnapshotForExpectFailure(this.document.body, { mode: 'default' });
   }
 
   private async expectSingleElement(element: Element, options: FrameExpectParams): Promise<{ matches: boolean, received?: any }> {
     const expression = options.expression;
+
+    {
+      // Page-level values. The element (:root) is only used to reach the document.
+      if (expression === 'to.have.title') {
+        const received = this.document.title;
+        return { received, matches: new ExpectedTextMatcher(options.expectedText![0]).matches(received) };
+      }
+      if (expression === 'to.have.url') {
+        const received = this.document.location.href;
+        return { received, matches: new ExpectedTextMatcher(options.expectedText![0]).matches(received) };
+      }
+    }
 
     {
       // Element state / boolean values.
@@ -1665,9 +1630,9 @@ export class InjectedScript {
       } else if (expression === 'to.have.text') {
         received = options.useInnerText ? (element as HTMLElement).innerText : elementText(new Map(), element).full;
       } else if (expression === 'to.have.accessible.name') {
-        received = getElementAccessibleName(element, false /* includeHidden */);
+        received = getElementAccessibleNameText(element, false /* includeHidden */);
       } else if (expression === 'to.have.accessible.description') {
-        received = getElementAccessibleDescription(element, false /* includeHidden */);
+        received = getElementAccessibleDescription(element, false /* includeHidden */).text;
       } else if (expression === 'to.have.accessible.error.message') {
         received = getElementAccessibleErrorMessage(element);
       } else if (expression === 'to.have.role') {

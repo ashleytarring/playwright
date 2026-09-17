@@ -54,17 +54,18 @@ export class Highlight {
   private _glassPaneElement: HTMLElement;
   private _glassPaneShadow: ShadowRoot;
   private _renderedEntries: RenderedHighlightEntry[] = [];
-  private _actionPointElement: HTMLElement;
+  private _actionPointElement: HTMLElement | undefined;
   private _actionCursorElement: HTMLElement;
   private _titleElement: HTMLElement;
   private _userOverlayContainer: HTMLElement;
   private _userOverlays = new Map<string, HTMLElement>();
   private _userOverlayHidden = false;
+  private _userOverlayTimer: number | undefined;
   private _isUnderTest: boolean;
   private _injectedScript: InjectedScript;
   private _rafRequest: number | undefined;
   private _language: Language = 'javascript';
-  private _elementHighlightSelectors = new Map<string, { selector: ParsedSelector, cssStyle?: string }>();
+  private _elementHighlights: { selector: ParsedSelector, cssStyle?: string }[] = [];
 
   constructor(injectedScript: InjectedScript) {
     this._injectedScript = injectedScript;
@@ -84,8 +85,6 @@ export class Highlight {
     this._glassPaneElement.style.pointerEvents = 'none';
     this._glassPaneElement.style.display = 'flex';
     this._glassPaneElement.style.backgroundColor = 'transparent';
-    this._actionPointElement = document.createElement('x-pw-action-point');
-    this._actionPointElement.setAttribute('hidden', 'true');
     this._actionCursorElement = document.createElement('x-pw-action-cursor');
     this._actionCursorElement.style.visibility = 'hidden';
     this._actionCursorElement.appendChild(this._createCursorSvg(document));
@@ -105,7 +104,6 @@ export class Highlight {
       styleElement.textContent = highlightCSS;
       this._glassPaneShadow.appendChild(styleElement);
     }
-    this._glassPaneShadow.appendChild(this._actionPointElement);
     this._glassPaneShadow.appendChild(this._actionCursorElement);
     this._glassPaneShadow.appendChild(this._titleElement);
     this._glassPaneShadow.appendChild(this._userOverlayContainer);
@@ -129,17 +127,12 @@ export class Highlight {
     this._language = language;
   }
 
-  addElementHighlight(selector: ParsedSelector, cssStyle?: string) {
-    const key = stringifySelector(selector);
-    this._elementHighlightSelectors.set(key, { selector, cssStyle });
-    this._ensureElementHighlightRaf();
-  }
-
-  removeElementHighlight(selector: ParsedSelector) {
-    const key = stringifySelector(selector);
-    if (!this._elementHighlightSelectors.delete(key))
-      return;
-    if (this._elementHighlightSelectors.size === 0) {
+  setElementHighlights(highlights: { selector: ParsedSelector, cssStyle?: string }[]) {
+    const hadHighlights = this._elementHighlights.length > 0;
+    this._elementHighlights = highlights;
+    if (this._elementHighlights.length) {
+      this._ensureElementHighlightRaf();
+    } else if (hadHighlights) {
       if (this._rafRequest) {
         this._injectedScript.utils.builtins.cancelAnimationFrame(this._rafRequest);
         this._rafRequest = undefined;
@@ -153,13 +146,21 @@ export class Highlight {
       return;
     const tick = () => {
       const entries: HighlightEntry[] = [];
-      for (const { selector, cssStyle } of this._elementHighlightSelectors.values()) {
-        const elements = this._injectedScript.querySelectorAll(selector, this._injectedScript.document.documentElement);
-        const locator = asLocator(this._language, stringifySelector(selector));
+      const glassPanes = [...this._injectedScript.document.querySelectorAll('x-pw-glass')];
+      for (const { selector, cssStyle } of this._elementHighlights) {
+        let elements: Element[] = [];
+        try {
+          elements = this._injectedScript.querySelectorAll(selector, this._injectedScript.document.documentElement);
+        } catch {
+        }
+        // Do not accidentally match our own highlight.
+        elements = elements.filter(element => !glassPanes.some(pane => this._injectedScript.utils.isInsideScope(pane, element)));
+        // There is no locator representation for the aria template, skip the tooltip.
+        const locator = selector.parts.some(part => part.name === 'aria-template') ? undefined : asLocator(this._language, stringifySelector(selector));
         const color = elements.length > 1 ? '#f6b26b7f' : '#6fa8dc7f';
         for (let i = 0; i < elements.length; ++i) {
           const suffix = elements.length > 1 ? ` [${i + 1} of ${elements.length}]` : '';
-          entries.push({ element: elements[i], color, tooltipText: locator + suffix, cssStyle });
+          entries.push({ element: elements[i], color, tooltipText: locator === undefined ? undefined : locator + suffix, cssStyle });
         }
       }
       this.updateHighlight(entries);
@@ -173,11 +174,16 @@ export class Highlight {
       this._injectedScript.utils.builtins.cancelAnimationFrame(this._rafRequest);
       this._rafRequest = undefined;
     }
-    this._elementHighlightSelectors.clear();
+    this._elementHighlights = [];
+    this._clearUserOverlayTimer();
     this._glassPaneElement.remove();
   }
 
   showActionPoint(x: number, y: number, fadeDuration?: number) {
+    if (!this._actionPointElement) {
+      this._actionPointElement = this._injectedScript.document.createElement('x-pw-action-point');
+      this._glassPaneShadow.appendChild(this._actionPointElement);
+    }
     this._actionPointElement.style.top = y + 'px';
     this._actionPointElement.style.left = x + 'px';
     this._actionPointElement.hidden = false;
@@ -188,7 +194,8 @@ export class Highlight {
   }
 
   hideActionPoint() {
-    this._actionPointElement.hidden = true;
+    if (this._actionPointElement)
+      this._actionPointElement.hidden = true;
   }
 
   moveActionCursor(x: number, y: number, fadeDuration?: number) {
@@ -288,6 +295,7 @@ export class Highlight {
     this._userOverlays.set(id, element);
     this._userOverlayContainer.appendChild(element);
     this._userOverlayContainer.hidden = this._userOverlayHidden;
+    this._ensureUserOverlayTimer();
     return id;
   }
 
@@ -301,8 +309,28 @@ export class Highlight {
       element.remove();
       this._userOverlays.delete(id);
     }
-    if (this._userOverlays.size === 0)
+    if (this._userOverlays.size === 0) {
       this._userOverlayContainer.hidden = true;
+      this._clearUserOverlayTimer();
+    }
+  }
+
+  // Elements that enter the top layer later paint above the glass pane, so keep re-promoting it while overlays are showing.
+  private _ensureUserOverlayTimer() {
+    if (this._userOverlayTimer !== undefined)
+      return;
+    const tick = () => {
+      this.install();
+      this._userOverlayTimer = this._injectedScript.utils.builtins.setTimeout(tick, 500);
+    };
+    this._userOverlayTimer = this._injectedScript.utils.builtins.setTimeout(tick, 500);
+  }
+
+  private _clearUserOverlayTimer() {
+    if (this._userOverlayTimer === undefined)
+      return;
+    this._injectedScript.utils.builtins.clearTimeout(this._userOverlayTimer);
+    this._userOverlayTimer = undefined;
   }
 
   setUserOverlaysVisible(visible: boolean) {
@@ -318,8 +346,10 @@ export class Highlight {
     this._renderedEntries = [];
   }
 
-  maskElements(elements: Element[], color: string) {
-    this.updateHighlight(elements.map(element => ({ element, color })));
+  addMaskedElements(elements: Element[], color: string) {
+    const existingEntries = this._renderedEntries.map(e => ({ element: e.targetElement, color: e.color }));
+    const newEntries = elements.map(element => ({ element, color }));
+    this.updateHighlight([...existingEntries, ...newEntries]);
   }
 
   updateHighlight(entries: HighlightEntry[]) {
