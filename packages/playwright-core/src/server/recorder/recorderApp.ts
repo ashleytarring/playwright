@@ -60,6 +60,7 @@ export class RecorderApp {
   private _primaryGeneratorId: string;
   private _selectedGeneratorId: string;
   private _frontend: RecorderFrontend;
+  private _inspectedContext: BrowserContext | undefined;
 
   private constructor(recorder: Recorder, params: RecorderAppParams, page: Page, wsEndpointForTest: string | undefined) {
     this._page = page;
@@ -86,6 +87,7 @@ export class RecorderApp {
   }
 
   private async _init(inspectedContext: BrowserContext) {
+    this._inspectedContext = inspectedContext;
     await syncLocalStorageWithSettings(this._page, 'recorder');
 
     const controller = new ProgressController();
@@ -205,7 +207,9 @@ export class RecorderApp {
   }
 
   source(): string | undefined {
-    return this._recorderSources.find(s => s.id === this._primaryGeneratorId)?.text ?? this._recorderSources[0]?.text;
+    return (this._inspectedContext as any)?.recorderSourceForPause
+      ?? this._recorderSources.find(s => s.id === this._primaryGeneratorId)?.text
+      ?? this._recorderSources[0]?.text;
   }
 
   async close() {
@@ -352,6 +356,9 @@ export class RecorderApp {
     }
 
     this._recorderSources = recorderSources;
+    const primarySource = recorderSources.find(s => s.id === this._primaryGeneratorId)?.text ?? recorderSources[0]?.text;
+    if (primarySource !== undefined && this._inspectedContext)
+      (this._inspectedContext as any).recorderSourceForPause = primarySource;
     this._pushAllSources();
     this._revealSource(revealSourceId);
   }
