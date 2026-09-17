@@ -188,6 +188,10 @@ export class RecorderApp {
     });
   }
 
+  static forContext(context: BrowserContext): RecorderApp | undefined {
+    return (context as any)[recorderAppSymbol] as RecorderApp | undefined;
+  }
+
   static async show(context: BrowserContext, params: channels.BrowserContextShowRecorderParams) {
     if (process.env.PW_CODEGEN_NO_INSPECTOR)
       return;
@@ -198,6 +202,10 @@ export class RecorderApp {
       (context as any)[recorderAppSymbol] = await RecorderApp._show(recorder, context, params);
     if (params.mode)
       await recorder.setMode(params.mode);
+  }
+
+  source(): string | undefined {
+    return this._recorderSources.find(s => s.id === this._primaryGeneratorId)?.text ?? this._recorderSources[0]?.text;
   }
 
   async close() {

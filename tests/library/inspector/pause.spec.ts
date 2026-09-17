@@ -81,6 +81,15 @@ it.describe('pause', () => {
     await scriptPromise;
   });
 
+  it('should return generated source from BrowserContext.pause', async ({ page, recorderPageGetter }) => {
+    const pausePromise = page.context()._channel.pause({}, { timeout: 0 });
+    const recorderPage = await recorderPageGetter();
+    await recorderPage.click('[title="Resume (F8)"]');
+    const result = await pausePromise;
+    expect(typeof result.source).toBe('string');
+    expect(result.source!.length).toBeGreaterThan(0);
+  });
+
   it('should add a named step to inspector code', async ({ page, recorderPageGetter }) => {
     const scriptPromise = (async () => {
       // @ts-ignore

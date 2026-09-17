@@ -376,8 +376,9 @@ export class BrowserContextDispatcher extends Dispatcher<BrowserContext, channel
     await this._context.exposeConsoleApi(progress);
   }
 
-  async pause(params: channels.BrowserContextPauseParams, progress: Progress) {
-    // Debugger will take care of this.
+  async pause(params: channels.BrowserContextPauseParams, progress: Progress): Promise<channels.BrowserContextPauseResult> {
+    const recorderApp = RecorderApp.forContext(this._context);
+    return { source: recorderApp?.source() };
   }
 
   async newCDPSession(params: channels.BrowserContextNewCDPSessionParams, progress: Progress): Promise<channels.BrowserContextNewCDPSessionResult> {

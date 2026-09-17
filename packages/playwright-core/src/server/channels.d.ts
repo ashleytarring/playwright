@@ -1541,7 +1541,9 @@ export type BrowserContextPauseParams = {
 export type BrowserContextPauseOptions = {
   outputFile?: string,
 };
-export type BrowserContextPauseResult = void;
+export type BrowserContextPauseResult = {
+  source?: string,
+};
 export type BrowserContextShowRecorderParams = {
   language?: string,
   mode?: 'inspecting' | 'recording',
