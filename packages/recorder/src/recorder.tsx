@@ -44,12 +44,15 @@ export const Recorder: React.FC = ({}) => {
   const [ariaSnapshot, setAriaSnapshot] = React.useState<string | undefined>();
   const [ariaSnapshotErrors, setAriaSnapshotErrors] = React.useState<SourceHighlight[]>();
   const [settingsOpen, setSettingsOpen] = React.useState(false);
+  const [addStepOpen, setAddStepOpen] = React.useState(false);
+  const [stepTitle, setStepTitle] = React.useState('');
   const [theme, setTheme] = useThemeSetting();
   const [autoExpect, setAutoExpect] = useSetting<boolean>('autoExpect', false);
   const settingsButtonRef = React.useRef<HTMLButtonElement>(null);
   const backend = React.useMemo(createRecorderBackend, []);
   const [locator, setLocator] = React.useState('');
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
+  const addStepButtonRef = React.useRef<HTMLButtonElement>(null);
 
   const source = React.useMemo(() => {
     const source = sources.find(s => s.id === selectedFileId);
@@ -183,6 +186,7 @@ export const Recorder: React.FC = ({}) => {
       <ToolbarButton icon='whole-word' title='Assert text' toggled={mode === 'assertingText'} disabled={mode === 'none' || mode === 'standby' || mode === 'inspecting'} onClick={() => {
         backend.setMode({ mode: mode === 'assertingText' ? 'recording' : 'assertingText' });
       }}></ToolbarButton>
+      <ToolbarButton ref={addStepButtonRef} icon='symbol-event' title='Add step' disabled={mode === 'none' || mode === 'standby' || mode === 'inspecting'} onClick={() => setAddStepOpen(true)}></ToolbarButton>
       <ToolbarButton icon='symbol-constant' title='Assert value' toggled={mode === 'assertingValue'} disabled={mode === 'none' || mode === 'standby' || mode === 'inspecting'} onClick={() => {
         backend.setMode({ mode: mode === 'assertingValue' ? 'recording' : 'assertingValue' });
       }}></ToolbarButton>
@@ -211,6 +215,25 @@ export const Recorder: React.FC = ({}) => {
       <ToolbarButton icon='clear-all' title='Clear' disabled={!source || !source.text} onClick={() => {
         backend.clear();
       }}></ToolbarButton>
+      <Dialog
+        style={{ padding: '8px' }}
+        open={addStepOpen}
+        verticalOffset={8}
+        requestClose={() => setAddStepOpen(false)}
+        anchor={addStepButtonRef}
+        dataTestId='add-step-dialog'
+      >
+        <form onSubmit={event => {
+          event.preventDefault();
+          if (stepTitle.trim())
+            backend.addStep({ title: stepTitle.trim() });
+          setStepTitle('');
+          setAddStepOpen(false);
+        }}>
+          <input autoFocus aria-label='Step title' value={stepTitle} onChange={event => setStepTitle(event.target.value)} />
+          <button type='submit'>Add</button>
+        </form>
+      </Dialog>
       <ToolbarButton
         ref={settingsButtonRef}
         icon='settings-gear'

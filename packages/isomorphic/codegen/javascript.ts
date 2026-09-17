@@ -82,6 +82,8 @@ export class JavaScriptLanguageGenerator implements LanguageGenerator {
     if (signals.download)
       formatter.add(`const download${signals.download.downloadAlias}Promise = ${pageAlias}.waitForEvent('download');`);
 
+    if (action.name === 'comment')
+      formatter.newLine();
     formatter.add(this._generateActionCall(subject, actionInContext));
 
     if (popupAlias)
@@ -97,6 +99,8 @@ export class JavaScriptLanguageGenerator implements LanguageGenerator {
   private _generateActionCall(subject: string, actionInContext: actions.ActionInContext): string {
     const action = actionInContext.action;
     switch (action.name) {
+      case 'comment':
+        return `// Step: ${action.text}`;
       case 'openPage':
         throw Error('Not reached');
       case 'closePage':

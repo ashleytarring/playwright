@@ -117,6 +117,8 @@ export class CSharpLanguageGenerator implements LanguageGenerator {
       lines.push(`});`);
     }
 
+    if (action.name === 'comment')
+      formatter.newLine();
     for (const line of lines)
       formatter.add(line);
 
@@ -129,6 +131,8 @@ export class CSharpLanguageGenerator implements LanguageGenerator {
   private _generateActionCall(subject: string, actionInContext: actions.ActionInContext): string {
     const action = actionInContext.action;
     switch (action.name) {
+      case 'comment':
+        return `// Step: ${action.text}`;
       case 'openPage':
         throw Error('Not reached');
       case 'closePage':

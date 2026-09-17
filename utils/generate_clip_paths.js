@@ -60,6 +60,7 @@ const iconNames = [
   'stop-circle',
   'inspect',
   'whole-word',
+  'symbol-event',
   'eye',
   'symbol-constant',
   'check',

@@ -1068,6 +1068,8 @@ class Overlay {
   private _pickLocatorToggle: HTMLElement;
   private _assertVisibilityToggle: HTMLElement;
   private _assertTextToggle: HTMLElement;
+  private _addStepToggle: HTMLElement;
+  private _dialog: Dialog;
   private _assertValuesToggle: HTMLElement;
   private _assertSnapshotToggle: HTMLElement;
   private _offsetX = 0;
@@ -1076,6 +1078,7 @@ class Overlay {
 
   constructor(recorder: Recorder) {
     this._recorder = recorder;
+    this._dialog = new Dialog(recorder);
     const document = this._recorder.document;
     this._overlayElement = document.createElement('x-pw-overlay');
     const toolsListElement = document.createElement('x-pw-tools-list');
@@ -1108,6 +1111,12 @@ class Overlay {
     this._assertTextToggle.classList.add('text');
     this._assertTextToggle.appendChild(this._recorder.document.createElement('x-div'));
     toolsListElement.appendChild(this._assertTextToggle);
+
+    this._addStepToggle = this._recorder.document.createElement('x-pw-tool-item');
+    this._addStepToggle.title = 'Add step';
+    this._addStepToggle.classList.add('add-step');
+    this._addStepToggle.appendChild(this._recorder.document.createElement('x-div'));
+    toolsListElement.appendChild(this._addStepToggle);
 
     this._assertValuesToggle = this._recorder.document.createElement('x-pw-tool-item');
     this._assertValuesToggle.title = 'Assert value';
@@ -1160,6 +1169,12 @@ class Overlay {
         if (!this._assertTextToggle.classList.contains('disabled'))
           this._recorder.setMode(this._recorder.state.mode === 'assertingText' ? 'recording' : 'assertingText');
       }),
+      addEventListener(this._addStepToggle, 'click', event => {
+        if (this._addStepToggle.classList.contains('disabled'))
+          return;
+        consumeEvent(event);
+        this._showAddStepDialog();
+      }),
       addEventListener(this._assertValuesToggle, 'click', () => {
         if (!this._assertValuesToggle.classList.contains('disabled'))
           this._recorder.setMode(this._recorder.state.mode === 'assertingValue' ? 'recording' : 'assertingValue');
@@ -1190,6 +1205,7 @@ class Overlay {
     this._assertVisibilityToggle.classList.toggle('disabled', state.mode === 'none' || state.mode === 'standby' || state.mode === 'inspecting');
     this._assertTextToggle.classList.toggle('toggled', state.mode === 'assertingText');
     this._assertTextToggle.classList.toggle('disabled', state.mode === 'none' || state.mode === 'standby' || state.mode === 'inspecting');
+    this._addStepToggle.classList.toggle('disabled', state.mode === 'none' || state.mode === 'standby' || state.mode === 'inspecting');
     this._assertValuesToggle.classList.toggle('toggled', state.mode === 'assertingValue');
     this._assertValuesToggle.classList.toggle('disabled', state.mode === 'none' || state.mode === 'standby' || state.mode === 'inspecting');
     this._assertSnapshotToggle.classList.toggle('toggled', state.mode === 'assertingSnapshot');
@@ -1258,6 +1274,12 @@ class Overlay {
   }
 
   onClick(event: MouseEvent) {
+    if (this._addStepToggle.contains(event.target as Node)) {
+      if (!this._addStepToggle.classList.contains('disabled'))
+        this._showAddStepDialog();
+      consumeEvent(event);
+      return true;
+    }
     if (this._dragState) {
       this._dragState = undefined;
       consumeEvent(event);
@@ -1268,6 +1290,29 @@ class Overlay {
 
   onDblClick(event: MouseEvent) {
     return false;
+  }
+
+  private _showAddStepDialog() {
+    const input = this._recorder.document.createElement('input');
+    input.setAttribute('aria-label', 'Step title');
+    const submit = () => {
+      const title = input.value.trim();
+      if (title)
+        void this._recorder.recordAction({ name: 'comment', text: title });
+      this._dialog.close();
+    };
+    input.addEventListener('keydown', event => {
+      if (event.key === 'Enter')
+        submit();
+    });
+    const dialogElement = this._dialog.show({
+      label: 'Add step',
+      body: input,
+      onCommit: submit,
+    });
+    const position = this._recorder.highlight.tooltipPosition(this._recorder.highlight.firstBox() || this._addStepToggle.getBoundingClientRect(), dialogElement);
+    this._dialog.moveTo(position.anchorTop, position.anchorLeft);
+    input.focus();
   }
 }
 

@@ -140,6 +140,16 @@ export class RecorderApp {
         this._updateActions('reveal');
         this._recorder.clear();
       },
+      addStep: async (params: { title: string }) => {
+        if (!params.title)
+          return;
+        this._actions.push({
+          pageGuid: this._page.guid,
+          action: { name: 'comment', text: params.title },
+          signals: [],
+        });
+        this._updateActions('reveal');
+      },
       fileChanged: async (params: { fileId: string }) => {
         const source = [...this._recorderSources, ...this._userSources].find(s => s.id === params.fileId);
         if (source) {

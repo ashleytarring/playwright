@@ -211,6 +211,8 @@ BrowserContext:
 
     pause:
       title: Pause
+      parameters:
+        outputFile: string?
 
     # Shows the recorder window. Throws while a programmatic recording is in progress.
     showRecorder:

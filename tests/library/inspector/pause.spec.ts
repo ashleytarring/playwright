@@ -81,6 +81,20 @@ it.describe('pause', () => {
     await scriptPromise;
   });
 
+  it('should add a named step to inspector code', async ({ page, recorderPageGetter }) => {
+    const scriptPromise = (async () => {
+      // @ts-ignore
+      await page.pause({ __testHookKeepTestTimeout: true });
+    })();
+    const recorderPage = await recorderPageGetter();
+    await recorderPage.click('[title="Add step"]');
+    await recorderPage.getByLabel('Step title').fill('Sign in');
+    await recorderPage.getByRole('button', { name: 'Add' }).click();
+    await expect(recorderPage.locator('.cm-line')).toContainText('// Step: Sign in');
+    await recorderPage.click('[title="Resume (F8)"]');
+    await scriptPromise;
+  });
+
   it('should pause and resume the script with keyboard shortcut', async ({ page, recorderPageGetter }) => {
     const scriptPromise = (async () => {
       // @ts-ignore

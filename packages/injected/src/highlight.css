@@ -260,6 +260,11 @@ x-pw-tool-item.text > x-div {
   clip-path: url(#icon-whole-word);
 }
 
+x-pw-tool-item.add-step > x-div {
+  /* codicon: symbol-event */
+  clip-path: url(#icon-symbol-event);
+}
+
 x-pw-tool-item.visibility > x-div {
   /* codicon: eye */
   clip-path: url(#icon-eye);

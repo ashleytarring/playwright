@@ -103,6 +103,8 @@ export class JavaLanguageGenerator implements LanguageGenerator {
       });`;
     }
 
+    if (action.name === 'comment')
+      formatter.newLine();
     formatter.add(code);
 
     if (options.generateExpectSignal && signals.expect)
@@ -114,6 +116,8 @@ export class JavaLanguageGenerator implements LanguageGenerator {
   private _generateActionCall(subject: string, actionInContext: actions.ActionInContext): string {
     const action = actionInContext.action;
     switch (action.name) {
+      case 'comment':
+        return `// Step: ${action.text}`;
       case 'openPage':
         throw Error('Not reached');
       case 'closePage':

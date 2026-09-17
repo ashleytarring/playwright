@@ -43,6 +43,7 @@ export type EventData = {
     | 'pause'
     | 'setMode'
     | 'highlightRequested'
+    | 'addStep'
     | 'languageChanged';
   params: any;
 };
@@ -109,6 +110,7 @@ export interface RecorderBackend {
   highlightRequested(params: { selector?: string; ariaTemplate?: AriaTemplateNode }): Promise<void>;
   fileChanged(params: { fileId: string }): Promise<void>;
   clear(): Promise<void>;
+  addStep(params: { title: string }): Promise<void>;
 }
 
 export interface RecorderFrontend {

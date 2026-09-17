@@ -30,6 +30,8 @@ export class JsonlLanguageGenerator implements LanguageGenerator {
   }
 
   generateAction(actionInContext: actions.ActionInContext, options: LanguageGeneratorOptions): string {
+    if (actionInContext.action.name === 'comment')
+      return `# Step: ${actionInContext.action.text}`;
     const locator = (actionInContext.action as any).selector ? JSON.parse(asLocator('jsonl', (actionInContext.action as any).selector)) : undefined;
     const entry = {
       ...actionInContext.action,

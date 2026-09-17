@@ -156,8 +156,11 @@ export abstract class BrowserContext<EM extends EventMap = EventMap> extends Sdk
     if (shouldEnableDebugger) {
       this._debugger.setPauseAt();
       this._debugger.on(Debugger.Events.PausedStateChanged, () => {
-        if (this._debugger.isPaused())
-          RecorderApp.show(this, {}).catch(() => {});
+        if (this._debugger.isPaused()) {
+          const details = this._debugger.pausedDetails();
+          const outputFile = details?.metadata?.params?.outputFile as string | undefined;
+          RecorderApp.show(this, { language: 'csharp', mode: 'recording', outputFile }).catch(() => {});
+        }
       });
     }
 

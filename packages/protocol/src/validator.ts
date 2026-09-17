@@ -843,7 +843,9 @@ scheme.BrowserContextSetStorageStateParams = tObject({
   })),
 });
 scheme.BrowserContextSetStorageStateResult = tOptional(tObject({}));
-scheme.BrowserContextPauseParams = tOptional(tObject({}));
+scheme.BrowserContextPauseParams = tObject({
+  outputFile: tOptional(tString),
+});
 scheme.BrowserContextPauseResult = tOptional(tObject({}));
 scheme.BrowserContextShowRecorderParams = tObject({
   language: tOptional(tString),
